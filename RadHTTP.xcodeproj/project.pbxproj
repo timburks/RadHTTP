@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		22E9FD351745F55500FE9B01 /* RadHTTPService.m in Sources */ = {isa = PBXBuildFile; fileRef = 22E9FD341745F55500FE9B01 /* RadHTTPService.m */; };
 		22FF922E174592DB00ADC59E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 22FF922D174592DB00ADC59E /* Foundation.framework */; };
 		22FF92501745939E00ADC59E /* RadCocoaHTTPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 22FF923F1745939E00ADC59E /* RadCocoaHTTPServer.m */; };
 		22FF92511745939E00ADC59E /* RadHTTPHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = 22FF92421745939E00ADC59E /* RadHTTPHelpers.m */; };
@@ -34,6 +35,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		22E9FD331745F55500FE9B01 /* RadHTTPService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadHTTPService.h; sourceTree = "<group>"; };
+		22E9FD341745F55500FE9B01 /* RadHTTPService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RadHTTPService.m; sourceTree = "<group>"; };
 		22FF922A174592DB00ADC59E /* RadHTTP */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = RadHTTP; sourceTree = BUILT_PRODUCTS_DIR; };
 		22FF922D174592DB00ADC59E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		22FF923E1745939E00ADC59E /* RadCocoaHTTPServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadCocoaHTTPServer.h; sourceTree = "<group>"; };
@@ -122,6 +125,8 @@
 				22FF92481745939E00ADC59E /* RadHTTPRequestRouter.m */,
 				22FF92491745939E00ADC59E /* RadHTTPResponse.h */,
 				22FF924A1745939E00ADC59E /* RadHTTPResponse.m */,
+				22E9FD331745F55500FE9B01 /* RadHTTPService.h */,
+				22E9FD341745F55500FE9B01 /* RadHTTPService.m */,
 				22FF924B1745939E00ADC59E /* RadHTTPServer.h */,
 				22FF924C1745939E00ADC59E /* RadHTTPServer.m */,
 				22FF923E1745939E00ADC59E /* RadCocoaHTTPServer.h */,
@@ -200,6 +205,7 @@
 				22FF92561745939E00ADC59E /* RadHTTPServer.m in Sources */,
 				22FF92571745939E00ADC59E /* RadLibEventHTTPServer.m in Sources */,
 				22FF925A174593B000ADC59E /* main.m in Sources */,
+				22E9FD351745F55500FE9B01 /* RadHTTPService.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -304,6 +310,7 @@
 				22FF923A174592DB00ADC59E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

@@ -13,6 +13,6 @@
 @property (nonatomic, strong) NSMutableDictionary *headers;
 
 - (void) setValue:(NSString *) value forHTTPHeader:(NSString *) header;
-- (NSData *) messageData;
 - (NSString *) redirectResponseToLocation:(NSString *) location;
+
 @end

@@ -30,37 +30,19 @@
     }
 }
 
-- (NSData *) messageData {
-    // Create the response message.
-    CFHTTPMessageRef message = CFHTTPMessageCreateResponse(kCFAllocatorDefault,
-                                                           self.status,
-                                                           NULL,
-                                                           kCFHTTPVersion1_1);
-    // Set the response headers.
-    for (NSString *key in [self.headers allKeys]) {
-        id value = [self.headers objectForKey:key];
-        CFHTTPMessageSetHeaderFieldValue (message, (__bridge CFStringRef)key, (__bridge CFStringRef)value);
-    }    
-    // Set the response body and add the Content-Length header.
-    if (self.body) {
-        if ([self.body isKindOfClass:[NSString class]]) {
-            self.body = [((NSString *) self.body) dataUsingEncoding:NSUTF8StringEncoding];
-        }
-        CFStringRef length = CFStringCreateWithFormat(NULL, NULL, CFSTR("%ld"), (unsigned long)[self.body length]);
-        CFHTTPMessageSetHeaderFieldValue (message, CFSTR("Content-Length"), length);
-        CFHTTPMessageSetBody(message, (__bridge CFDataRef) self.body);
-    }    
-    // Serialize the message and return the result.
-    CFDataRef messageData = CFHTTPMessageCopySerializedMessage(message);
-    CFRelease(message);
-    return (__bridge_transfer NSData *) messageData;
-}
-
 - (NSString *) redirectResponseToLocation:(NSString *) location 
 {
     [self setStatus:303];
     [self setValue:location forHTTPHeader:@"Location"];
     return @"redirecting";
+}
+
+- (void) setBody:(NSData *)body {
+    if ([body isKindOfClass:[NSString class]]) {
+        _body = [(NSString *) body dataUsingEncoding:NSUTF8StringEncoding];
+    } else {
+        _body = body;
+    }
 }
 
 @end

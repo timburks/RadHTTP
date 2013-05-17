@@ -9,6 +9,4 @@
 
 @interface RadCocoaHTTPServer : RadHTTPServer
 
-+ (RadCocoaHTTPServer *) sharedServer;
-
 @end

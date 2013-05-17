@@ -6,7 +6,7 @@
 
 #import "RadLibEventHTTPServer.h"
 #import "RadCocoaHTTPServer.h"
-#import "RadHTTPRequestRouter.h"
+#import "RadHTTPService.h"
 #import "RadHTTPResponse.h"
 #import "RadHTTPRequest.h"
 #import "RadHTTPHelpers.h"
@@ -37,9 +37,9 @@ int main (int argc, const char *argv[])
         static NSString *cacheDirectory = CACHEDIRECTORY;
         create_cache_directory(cacheDirectory);
         
-        RadHTTPRequestRouter *router = [[RadHTTPRequestRouter alloc] init];
+        RadHTTPService *service = [[RadHTTPService alloc] init];
         
-        [router addHandlerWithHTTPMethod:@"GET" path:@"/" block:
+        [service addHandlerWithHTTPMethod:@"GET" path:@"/" block:
          ^(RadHTTPRequest *request) {
              RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
              response.body = [@"RadHTTP" dataUsingEncoding:NSUTF8StringEncoding];
@@ -49,7 +49,7 @@ int main (int argc, const char *argv[])
              return response;
          }];
         
-        [router addHandlerWithHTTPMethod:@"POST" path:@"/item" block:
+        [service addHandlerWithHTTPMethod:@"POST" path:@"/item" block:
          ^(RadHTTPRequest *request) {
              NSString *contentType = [request.headers objectForKey:@"Content-Type"];
              NSString *creatorName = [request.headers objectForKey:@"Creator-Name"];
@@ -75,7 +75,7 @@ int main (int argc, const char *argv[])
              return response;
          }];
         
-        [router addHandlerWithHTTPMethod:@"GET" path:@"/item/identifier:" block:
+        [service addHandlerWithHTTPMethod:@"GET" path:@"/item/identifier:" block:
          ^(RadHTTPRequest *request) {
              NSString *identifier = [request.bindings objectForKey:@"identifier"];
              NSData *data = [NSData dataWithContentsOfFile:
@@ -98,10 +98,10 @@ int main (int argc, const char *argv[])
          }];
         
         // File handler.
-        [router addHandlerWithPath:@"/*path:" directory:@"public"];
+        [service addHandlerWithPath:@"/*path:" directory:@"public"];
         
         // "Not found" handler. This should always be last.
-        [router addHandlerWithHTTPMethod:@"GET" path:@"/*path:" block:
+        [service addHandlerWithHTTPMethod:@"GET" path:@"/*path:" block:
          ^(RadHTTPRequest *request) {
              NSString *path = [request.bindings objectForKey:@"*path"];
              RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
@@ -111,8 +111,8 @@ int main (int argc, const char *argv[])
              return response;
          }];
         
-        RadCocoaHTTPServer *server = [[RadCocoaHTTPServer alloc] initWithRequestRouter:router];
-        //RadLibEventHTTPServer *server = [[RadLibEventHTTPServer alloc] initWithRequestRouter:router];
+        //RadCocoaHTTPServer *server = [[RadCocoaHTTPServer alloc] initWithService:service];
+        RadLibEventHTTPServer *server = [[RadLibEventHTTPServer alloc] initWithService:service];
 
         [server start];
         [[NSRunLoop mainRunLoop] run];

@@ -2,13 +2,12 @@
 
 @class RadHTTPRequest;
 @class RadHTTPResponse;
+@class RadHTTPRequestHandler;
 
 @interface RadHTTPRequestRouter : NSObject
 
-+ (RadHTTPRequestRouter *) sharedRouter;
-
 - (RadHTTPResponse *) responseForHTTPRequest:(RadHTTPRequest *) request;
-- (void) addHandlerWithHTTPMethod:(NSString *) httpMethod path:(NSString *) path block:(id) block;
-- (void) addHandlerWithPath:(NSString *) path directory:(NSString *) directory;
+
+- (void) insertHandler:(RadHTTPRequestHandler *) handler level:(NSUInteger) level;
 
 @end

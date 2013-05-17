@@ -7,9 +7,7 @@
 //
 #import <Foundation/Foundation.h>
 
-@class RadHTTPRequest;
-@class RadHTTPResponse;
-@class RadHTTPRequestRouter;
+@class RadHTTPService;
 
 //
 // RadHTTPServer
@@ -17,16 +15,11 @@
 //
 @interface RadHTTPServer : NSObject 
 @property (nonatomic, assign) unsigned port;
-@property (nonatomic, strong) RadHTTPRequestRouter *router;
 @property (nonatomic, assign) BOOL localOnly;
 @property (nonatomic, assign) BOOL verbose;
+@property (nonatomic, strong) RadHTTPService *service;
 
-+ (RadHTTPServer *) sharedServer;
-
-+ (void) setMimeType:(NSString *) mimeType forExtension:(NSString *) extension;
-+ (NSString *) mimeTypeForFilename:(NSString *) filename;
-
-- (id)initWithRequestRouter:(RadHTTPRequestRouter *) router;
+- (id)initWithService:(RadHTTPService *) service;
 - (void) start;
 - (void) run;
 @end

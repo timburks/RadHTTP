@@ -9,7 +9,7 @@
 #import "RadCocoaHTTPServer.h"
 #import "RadHTTPRequest.h"
 #import "RadHTTPResponse.h"
-#import "RadHTTPRequestRouter.h"
+#import "RadHTTPService.h"
 
 #import <sys/socket.h>  // for AF_INET, PF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 #import <netinet/in.h>  // for IPPROTO_TCP, sockaddr_in
@@ -187,6 +187,34 @@
 
 @end
 
+
+NSData *messageDataForResponse(RadHTTPResponse *response)
+{
+    // Create the response message.
+    CFHTTPMessageRef message = CFHTTPMessageCreateResponse(kCFAllocatorDefault,
+                                                           response.status,
+                                                           NULL,
+                                                           kCFHTTPVersion1_1);
+    // Set the response headers.
+    for (NSString *key in [response.headers allKeys]) {
+        id value = [response.headers objectForKey:key];
+        CFHTTPMessageSetHeaderFieldValue (message, (__bridge CFStringRef)key, (__bridge CFStringRef)value);
+    }
+    // Set the response body and add the Content-Length header.
+    if (response.body) {
+        if ([response.body isKindOfClass:[NSString class]]) {
+            response.body = [((NSString *) response.body) dataUsingEncoding:NSUTF8StringEncoding];
+        }
+        CFStringRef length = CFStringCreateWithFormat(NULL, NULL, CFSTR("%ld"), (unsigned long)[response.body length]);
+        CFHTTPMessageSetHeaderFieldValue (message, CFSTR("Content-Length"), length);
+        CFHTTPMessageSetBody(message, (__bridge CFDataRef) response.body);
+    }
+    // Serialize the message and return the result.
+    CFDataRef messageData = CFHTTPMessageCopySerializedMessage(message);
+    CFRelease(message);
+    return (__bridge_transfer NSData *) messageData;
+}
+
 @interface RadCocoaHTTPServer ()
 @property (nonatomic, strong) NSFileHandle *fileHandle;
 @property (nonatomic, strong) NSMutableArray *connections;
@@ -204,19 +232,9 @@
 }
 #endif
 
-+ (RadCocoaHTTPServer *) sharedServer
+- (id)initWithService:(RadHTTPService *) service
 {
-    static dispatch_once_t once;
-    static RadCocoaHTTPServer *sharedInstance;
-    dispatch_once(&once, ^{
-        sharedInstance = [[self alloc] init];
-    });
-    return sharedInstance;
-}
-
-- (id)initWithRequestRouter:(RadHTTPRequestRouter *) router
-{
-    if (self = [super initWithRequestRouter:router]) {
+    if (self = [super initWithService:service]) {
 #if !TARGET_OS_IPHONE
         [self attachHandlers];
 #endif
@@ -313,13 +331,13 @@ static void sig_int(int sig)
             dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
             dispatch_async(queue, ^{
                 @try {
-                    RadHTTPResponse *response = [self.router responseForHTTPRequest:request];
+                    RadHTTPResponse *response = [self.service responseForHTTPRequest:request];
                     if (!response) {
                         response = [[RadHTTPResponse alloc] init];
                         response.status = 404;
                         response.body = [@"Resource not found" dataUsingEncoding:NSUTF8StringEncoding];
                     }
-                    [request.connection respondWithMessageData:[response messageData]];
+                    [request.connection respondWithMessageData:messageDataForResponse(response)];
                 }
                 @catch (NSException *exception) {
                     NSLog(@"Error while responding to request (%@): %@", request.path, [exception reason]);
@@ -330,13 +348,13 @@ static void sig_int(int sig)
             });
         } else {
             @try {
-                RadHTTPResponse *response = [self.router responseForHTTPRequest:request];
+                RadHTTPResponse *response = [self.service responseForHTTPRequest:request];
                 if (!response) {
                     response = [[RadHTTPResponse alloc] init];
                     response.status = 404;
                     response.body = [@"Resource not found" dataUsingEncoding:NSUTF8StringEncoding];
                 }
-                [request.connection respondWithMessageData:[response messageData]];
+                [request.connection respondWithMessageData:messageDataForResponse(response)];
             }
             @catch (NSException *exception) {
                 NSLog(@"Error while responding to request (%@): %@", request.path, [exception reason]);

@@ -9,7 +9,7 @@
 #import "RadLibEventHTTPServer.h"
 #import "RadHTTPRequest.h"
 #import "RadHTTPResponse.h"
-#import "RadHTTPRequestRouter.h"
+#import "RadHTTPService.h"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -101,19 +101,9 @@ static void rad_request_handler(struct evhttp_request *req, void *server_context
 
 @implementation RadLibEventHTTPServer
 
-+ (RadLibEventHTTPServer *) sharedServer
+- (id)initWithService:(RadHTTPService *) service
 {
-    static dispatch_once_t once;
-    static RadLibEventHTTPServer *sharedInstance;
-    dispatch_once(&once, ^{
-        sharedInstance = [[self alloc] init];
-    });
-    return sharedInstance;
-}
-
-- (id)initWithRequestRouter:(RadHTTPRequestRouter *) router
-{
-    if (self = [super initWithRequestRouter:router]) {
+    if (self = [super initWithService:service]) {
         event_base = event_init();
         evdns_init();
         httpd = evhttp_new(event_base);
@@ -225,7 +215,7 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
               );
     }
     @try {
-        RadHTTPResponse *response = [self.router responseForHTTPRequest:request];
+        RadHTTPResponse *response = [self.service responseForHTTPRequest:request];
         if (!response) {
             response = [[RadHTTPResponse alloc] init];
             response.status = 404;

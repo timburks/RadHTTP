@@ -9,6 +9,4 @@
 
 @interface RadLibEventHTTPServer : RadHTTPServer
 
-+ (RadLibEventHTTPServer *) sharedServer;
-
 @end

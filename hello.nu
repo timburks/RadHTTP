@@ -1,8 +1,7 @@
 #!/usr/local/bin/nush
 (load "RadHTTP:macros")
 
-(get "/" "hello, world.")
+(get "/" (&html (&body (&h1 "Hello, world."))))
 
-(set s ((RadCocoaHTTPServer alloc) initWithRequestRouter:(RadHTTPRequestRouter sharedRouter)))
-(s run)
+(RadCocoaHTTPServer run)
 

@@ -1,6 +1,7 @@
 #import "RadHTTPRequestHandler.h"
 #import "RadHTTPRequest.h"
 #import "RadHTTPResponse.h"
+#import "RadHTTPService.h"
 
 @interface RadHTTPRequestHandler ()
 @property (nonatomic, strong) NSString *httpMethod;    
@@ -8,38 +9,6 @@
 @property (nonatomic, strong) id block;	
 @property (nonatomic, strong) NSArray *parts; // used to expand pattern for request routing
 @end
-
-static NSString *mimetype(NSString *filename) {
-    static NSDictionary *mimetypes = nil;
-    if (!mimetypes) {
-        mimetypes = [NSDictionary dictionaryWithObjectsAndKeys:
-                     @"text/css", @"css",
-                     @"text/html", @"html",
-                     @"text/javascript", @"js",                     
-                     @"image/jpeg", @"jpeg",
-                     @"image/jpeg", @"jpg",
-                     @"image/png", @"png",
-                     @"image/gif", @"gif",
-                     @"image/bmp", @"bmp",
-                     @"image/x-icon", @"ico",
-                     @"application/vnd.apple.mpegURL", @"m3u8",
-                     @"video/MP2T", @"ts",
-                     @"video/mp4", @"mp4",
-                     @"application/pdf", @"pdf",
-                     @"application/xml", @"xml",
-                     @"text/xml", @"plist",
-                     @"application/octet-stream", @"ipa",
-                     @"application/octet-stream", @"mobileprovision",
-                     @"application/x-apple-aspen-config", @"mobileconfig",
-                     nil];
-    }
-    NSString *mimetype = [mimetypes objectForKey:[filename pathExtension]];
-    if (mimetype) {
-        return mimetype;
-    } else {
-        return @"text/html";
-    }
-}
 
 @implementation RadHTTPRequestHandler
 
@@ -68,8 +37,10 @@ static NSString *mimetype(NSString *filename) {
         if (data) {
             RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
             response.body = data;
-            [response setValue:mimetype(path) forHTTPHeader:@"Content-Type"];
-            [response setValue:@"max-age=3600" forHTTPHeader:@"Cache-Control"];
+            [response setValue:[[RadHTTPService sharedService] mimeTypeForFilename:path]
+                 forHTTPHeader:@"Content-Type"];
+            [response setValue:@"max-age=3600"
+                 forHTTPHeader:@"Cache-Control"];
             return response;             
         } else {
             return (RadHTTPResponse *) nil;

@@ -143,7 +143,6 @@ static void sig_int(int sig)
         NSLog(@"Unable to start service on port %d. Is another server running?", self.port);
     }
     else {
-        NSLog(@"running");
         gevent_base = event_base;
         signal(SIGINT, sig_int);
         

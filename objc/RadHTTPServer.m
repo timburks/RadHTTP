@@ -8,6 +8,9 @@
 #import "RadHTTPServer.h"
 #import "RadHTTPService.h"
 
+#import "RadCocoaHTTPServer.h"
+#import "RadLibEventHTTPServer.h"
+
 @implementation RadHTTPServer
 @synthesize service = _service, port, localOnly, verbose;
 
@@ -54,7 +57,15 @@
 
 + (void) run
 {
-    [[[self alloc] init] run];
+    if ([self isEqual:[RadHTTPServer class]]) {
+#ifdef DARWIN
+        [[[RadCocoaHTTPServer alloc] init] run];
+#else
+        [[[RadLibEventHTTPServer alloc] init] run];
+#endif
+    } else {
+        [[[self alloc] init] run];
+    }
 }
 
 @end

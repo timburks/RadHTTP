@@ -3,5 +3,5 @@
 
 (get "/" (&html (&body (&h1 "Hello, world."))))
 
-(RadLibEventHTTPServer run)
+(RadHTTPServer run)
 

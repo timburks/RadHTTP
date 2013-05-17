@@ -3,7 +3,7 @@
 
 ;; use this to declare get actions.
 (macro get (path *body)
-       `(((RadHTTPServer sharedServer) handler)
+       `((RadHTTPRequestRouter sharedRouter)
          addHandlerWithHTTPMethod:"GET"
          path:,path
          block:(do (REQUEST)
@@ -24,7 +24,7 @@
 
 ;; use this to declare post actions.
 (macro post (path *body)
-       `(((RadHTTPServer sharedServer) handler)
+       `((RadHTTPRequestRouter sharedRouter)
          addHandlerWithHTTPMethod:"POST"
          path:,path
          block:(do (REQUEST)
@@ -45,7 +45,7 @@
 
 ;; use this to declare put actions.
 (macro put (path *body)
-       `(((RadHTTPServer sharedServer) handler)
+       `((RadHTTPRequestRouter sharedRouter)
          addHandlerWithHTTPMethod:"PUT"
          path:,path
          block:(do (REQUEST)
@@ -66,7 +66,7 @@
 
 ;; use this to declare delete actions.
 (macro delete (path *body)
-       `(((RadHTTPServer sharedServer) handler)
+       `((RadHTTPRequestRouter sharedRouter)
          addHandlerWithHTTPMethod:"DELETE"
          path:,path
          block:(do (REQUEST)
@@ -87,5 +87,5 @@
 
 ;; use this to declare file handlers.
 (macro files (path directory)
-       `(((RadHTTPServer sharedServer) handler)
+       `((RadHTTPRequestRouter sharedRouter)
          addHandlerWithPath:,path directory:,directory))

@@ -16,6 +16,7 @@
 
 ;; source files
 (set @m_files     (filelist "^objc/.*.m$"))
+(set @nu_files     (filelist "^nu/.*.nu$"))
 
 (set SYSTEM ((NSString stringWithShellCommand:"uname") chomp))
 

@@ -31,6 +31,16 @@ static NSString *spaces(int n)
 
 @implementation RadHTTPRequestRouter
 
++ (RadHTTPRequestRouter *) sharedRouter
+{
+    static dispatch_once_t once;
+    static RadHTTPRequestRouter *sharedInstance;
+    dispatch_once(&once, ^{
+        sharedInstance = [[self alloc] init];
+    });
+    return sharedInstance;
+}
+
 + (RadHTTPRequestRouter *) routerWithToken:(NSString *) token
 {
     RadHTTPRequestRouter *router = [[self alloc] init];

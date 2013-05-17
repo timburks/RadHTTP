@@ -7,8 +7,10 @@
 //
 #import "RadHTTPRequest.h"
 #import "RadHTTPHelpers.h"
+#import <Nu/Nu.h>
 
 @implementation RadHTTPRequest
+@synthesize headers, query, body, context, method, connection, bindings, path;
 
 - (id) init {
     if ((self = [super init])) {

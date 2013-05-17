@@ -8,6 +8,7 @@
 #import "RadHTTPResponse.h"
 
 @implementation RadHTTPResponse
+@synthesize status, headers, body = _body;
 
 - (id) init 
 {
@@ -37,7 +38,7 @@
     return @"redirecting";
 }
 
-- (void) setBody:(NSData *)body {
+- (void) setBody:(NSData *) body {
     if ([body isKindOfClass:[NSString class]]) {
         _body = [(NSString *) body dataUsingEncoding:NSUTF8StringEncoding];
     } else {

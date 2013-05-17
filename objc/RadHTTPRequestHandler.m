@@ -11,6 +11,7 @@
 @end
 
 @implementation RadHTTPRequestHandler
+@synthesize httpMethod, path, block, parts;
 
 + (RadHTTPRequestHandler *) handlerWithHTTPMethod:(id)httpMethod path:(id)path block:(id)block
 {

@@ -6,6 +6,7 @@
 //  Copyright (c) 2013 Radtastical Inc. All rights reserved.
 //
 
+#include <dispatch/dispatch.h>
 #import "RadHTTPService.h"
 #import "RadHTTPRequestRouter.h"
 #import "RadHTTPRequestHandler.h"
@@ -16,6 +17,7 @@
 @end
 
 @implementation RadHTTPService
+@synthesize router, mimetypes;
 
 + (RadHTTPService *) sharedService
 {

@@ -30,6 +30,7 @@ static NSString *spaces(int n)
 }
 
 @implementation RadHTTPRequestRouter
+@synthesize keyHandlers, patternHandlers, token, handler;
 
 + (RadHTTPRequestRouter *) routerWithToken:(NSString *) token
 {

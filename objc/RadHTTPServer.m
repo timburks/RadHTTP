@@ -9,6 +9,7 @@
 #import "RadHTTPService.h"
 
 @implementation RadHTTPServer
+@synthesize service = _service, port, localOnly, verbose;
 
 - (id)initWithService:(RadHTTPService *) service
 {

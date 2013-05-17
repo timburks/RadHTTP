@@ -5,6 +5,7 @@
 //  Created by Tim Burks on 5/16/13.
 //  Copyright (c) 2013 Radtastical Inc. All rights reserved.
 //
+#ifndef LINUX
 
 #import "RadCocoaHTTPServer.h"
 #import "RadHTTPRequest.h"
@@ -397,3 +398,4 @@ static void sig_int(int sig)
 }
 
 @end
+#endif

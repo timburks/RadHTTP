@@ -10,13 +10,23 @@
 #import <Nu/Nu.h>
 
 @implementation RadHTTPRequest
-@synthesize headers, query, body, context, method, connection, bindings, path;
+@synthesize URL, headers, body, context, method, connection, bindings;
 
 - (id) init {
     if ((self = [super init])) {
         self.bindings = [NSMutableDictionary dictionary];
     }
     return self;
+}
+
+- (NSString *) path
+{
+    return [self.URL relativePath];
+}
+
+- (NSString *) query
+{
+    return [self.URL query];
 }
 
 - (NSDictionary *) cookies

@@ -23,7 +23,7 @@
 (case SYSTEM
       ("Darwin"
                (set @arch (list "x86_64"))
-               (set @cflags "-g -fobjc-arc")
+               (set @cflags "-DDARWIN -g -fobjc-arc")
                (set @ldflags "-framework Foundation -framework CoreServices -levent"))
       ("Linux"
               (set @arch (list "x86_64"))

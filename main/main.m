@@ -106,7 +106,7 @@ int main (int argc, const char *argv[])
              NSString *path = [request.bindings objectForKey:@"*path"];
              RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
              response.status = 404;
-             response.body = [[NSString stringWithFormat:@"404 Not found: %@", path]
+             response.body = [[NSString stringWithFormat:@"404 Not found: %@ %@", path, [request.URL description]]
                               dataUsingEncoding:NSUTF8StringEncoding];
              return response;
          }];

@@ -111,8 +111,7 @@
 {
     RadHTTPRequest *request = [[RadHTTPRequest alloc] init];
     CFURLRef URL = CFHTTPMessageCopyRequestURL(self.message);
-    request.path = [(__bridge NSURL *) URL relativePath];
-    request.query = [(__bridge NSURL *) URL query];
+    request.URL = (__bridge NSURL *) URL;
     CFStringRef method = CFHTTPMessageCopyRequestMethod(self.message);
     request.method = (__bridge NSString *) method;
     CFDictionaryRef headers = CFHTTPMessageCopyAllHeaderFields(self.message);

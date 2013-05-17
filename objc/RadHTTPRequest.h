@@ -12,13 +12,14 @@
 @end
 
 @interface RadHTTPRequest : NSObject
-@property (nonatomic, strong) NSString *path;
-@property (nonatomic, strong) NSString *query;
+@property (nonatomic, strong) NSURL *URL;
 @property (nonatomic, strong) NSString *method;
 @property (nonatomic, strong) NSDictionary *headers;
 @property (nonatomic, strong) NSData *body;
 @property (nonatomic, strong) NSMutableDictionary *bindings;
 
+- (NSString *) path;
+- (NSString *) query;
 - (NSDictionary *) cookies;
 - (NSDictionary *) post;
 

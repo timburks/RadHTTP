@@ -86,12 +86,31 @@ static NSData *rad_request_body_helper(struct evhttp_request *req)
 static void rad_request_handler(struct evhttp_request *req, void *server_context)
 {
     RadLibEventHTTPServer *server = (__bridge RadLibEventHTTPServer *) server_context;
-    
     RadHTTPRequest *request = [[RadHTTPRequest alloc] init];
 
     const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri (req);
+    const char *schemeString = evhttp_uri_get_scheme(uri);
+    NSString *scheme;
+    if (schemeString) {
+        scheme = [NSString stringWithCString:schemeString encoding:NSUTF8StringEncoding];
+    } else {
+        scheme = @"http";
+    }
     
-    request.path = [NSString stringWithCString:evhttp_uri_get_path(uri) encoding:NSUTF8StringEncoding];
+    NSString *host = @"";
+    const char *hostHeader = evhttp_find_header(req->input_headers, "Host");
+    if (hostHeader) {
+        host = [NSString stringWithCString:hostHeader encoding:NSUTF8StringEncoding];
+    }
+    
+    NSMutableString *fullpath = [NSMutableString stringWithCString:evhttp_uri_get_path(uri) encoding:NSUTF8StringEncoding];
+    const char *queryString = evhttp_uri_get_query(uri);
+    if (queryString) {
+        [fullpath appendFormat:@"?%s", queryString];
+    }
+
+    NSString *urlString = [NSString stringWithFormat:@"%@://%@%@", scheme, host, fullpath];
+    request.URL = [[NSURL alloc] initWithString:urlString];
     request.method = method_for_request(req);
     request.headers = rad_request_headers_helper(req);
     request.body = rad_request_body_helper(req);
@@ -207,7 +226,8 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
 - (void)processRequest:(RadHTTPRequest *)request
 {
     if (self.verbose) {
-        NSLog(@"%@ %@\n%@",
+        NSLog(@"%@ %@ %@\n%@",
+              [request URL],
               [request method],
               [request path],
               [[request headers] description]
@@ -225,7 +245,7 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
         if (self.verbose) {
             NSLog(@"RESPONSE %d %@", response.status, [rad_response_headers_helper(req) description]);
         }
-        rad_response_helper(req, response);        
+        rad_response_helper(req, response);
     }
     @catch (NSException *exception) {
         NSLog(@"Error while responding to request (%@): %@", request.path, [exception reason]);

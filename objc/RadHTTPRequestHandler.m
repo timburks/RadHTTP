@@ -4,9 +4,9 @@
 #import "RadHTTPService.h"
 
 @interface RadHTTPRequestHandler ()
-@property (nonatomic, strong) NSString *httpMethod;    
-@property (nonatomic, strong) NSString *path;			
-@property (nonatomic, strong) id block;	
+@property (nonatomic, strong) NSString *httpMethod;
+@property (nonatomic, strong) NSString *path;
+@property (nonatomic, strong) id block;
 @property (nonatomic, strong) NSArray *parts; // used to expand pattern for request routing
 @end
 
@@ -29,7 +29,7 @@
     RadHTTPRequestHandler *handler = [[RadHTTPRequestHandler alloc] init];
     handler.httpMethod = @"GET";
     handler.path = path;
-    handler.parts = [[NSString stringWithFormat:@"%@%@", @"GET", path]                      
+    handler.parts = [[NSString stringWithFormat:@"%@%@", @"GET", path]
                      componentsSeparatedByString:@"/"];
     handler.block = ^(RadHTTPRequest *REQUEST) {
         NSString *path = [REQUEST.bindings objectForKey:@"*path"];
@@ -42,10 +42,10 @@
                  forHTTPHeader:@"Content-Type"];
             [response setValue:@"max-age=3600"
                  forHTTPHeader:@"Cache-Control"];
-            return response;             
+            return response;
         } else {
             return (RadHTTPResponse *) nil;
-        }  
+        }
     };
     return handler;
 }
@@ -62,14 +62,16 @@ static Class NuCell;
 - (RadHTTPResponse *) responseForHTTPRequest:(RadHTTPRequest *) request;
 {
     // NSLog(@"handling request %@", [[request URL] description]);
-    if (NuBlock && NuCell && [self.block isKindOfClass:NuBlock]) {
-        id args = [[NuCell alloc] init];
-        [args performSelector:@selector(setCar:) withObject:request];
-        return [self.block performSelector:@selector(evalWithArguments:context:) 
-                                withObject:args 
-                                withObject:[NSMutableDictionary dictionary]];
-	} else {
-        return ((id(^)(id)) self.block)(request);
+    @autoreleasepool {
+        if (NuBlock && NuCell && [self.block isKindOfClass:NuBlock]) {
+            id args = [[NuCell alloc] init];
+            [args performSelector:@selector(setCar:) withObject:request];
+            return [self.block performSelector:@selector(evalWithArguments:context:)
+                                    withObject:args
+                                    withObject:[NSMutableDictionary dictionary]];
+        } else {
+            return ((id(^)(id)) self.block)(request);
+        }
     }
 }
 

@@ -1,91 +1,73 @@
 ;; to update the associated source file, run this:
 ;; nubake RadHTTPServer+Baked.nu --method macros --category Baked --class RadHTTPServer
 
-;; use this to declare get actions.
+(macro _httphandler (method path body)
+       `((RadHTTPService sharedService)
+         addHandlerWithHTTPMethod:,method
+         path:,path
+         block:(do (REQUEST)
+                   (set RESPONSE ((RadHTTPResponse alloc) init))
+                   ((REQUEST bindings) each:(do (key value) (_parser setValue:value forKey:key)))
+                   (set result nil)
+                   (try (set result (progn ,@body))
+                        (catch (exception)
+                               (if (exception isKindOfClass:(NuReturnException class))
+                                   (then (set result (exception value))
+                                         (else (puts (exception description))))
+                                   (else (puts (exception description))
+                                         (throw exception)))))
+                   (if result
+                       (then (RESPONSE setBody:result)
+                             RESPONSE)
+                       (else nil)))))
+
+;; Use these to declare the standard HTTP actions.
+
+(macro head (path *body)
+       `(_httphandler "HEAD" ,path ,*body))
+
 (macro get (path *body)
-       `((RadHTTPService sharedService)
-         addHandlerWithHTTPMethod:"GET"
-         path:,path
-         block:(do (REQUEST)
-                   (set RESPONSE ((RadHTTPResponse alloc) init))
-                   ((REQUEST bindings) each:(do (key value) (_parser setValue:value forKey:key)))
-                   (set result nil)
-                   (try (set result (progn ,@*body))
-                        (catch (exception)
-                               (if (exception isKindOfClass:(NuReturnException class))
-                                   (then (set result (exception value))
-                                         (else (puts (exception description))))
-                                   (else (puts (exception description))
-                                         (throw exception)))))
-                   (if result
-                       (then (RESPONSE setBody:result)
-                             RESPONSE)
-                       (else nil)))))
+       `(_httphandler "GET" ,path ,*body))
 
-;; use this to declare post actions.
 (macro post (path *body)
-       `((RadHTTPService sharedService)
-         addHandlerWithHTTPMethod:"POST"
-         path:,path
-         block:(do (REQUEST)
-                   (set RESPONSE ((RadHTTPResponse alloc) init))
-                   ((REQUEST bindings) each:(do (key value) (_parser setValue:value forKey:key)))
-                   (set result nil)
-                   (try (set result (progn ,@*body))
-                        (catch (exception)
-                               (if (exception isKindOfClass:(NuReturnException class))
-                                   (then (set result (exception value))
-                                         (else (puts (exception description))))
-                                   (else (puts (exception description))
-                                         (throw exception)))))
-                   (if result
-                       (then (RESPONSE setBody:result)
-                             RESPONSE)
-                       (else nil)))))
+       `(_httphandler "POST" ,path ,*body))
 
-;; use this to declare put actions.
 (macro put (path *body)
-       `((RadHTTPService sharedService)
-         addHandlerWithHTTPMethod:"PUT"
-         path:,path
-         block:(do (REQUEST)
-                   (set RESPONSE ((RadHTTPResponse alloc) init))
-                   ((REQUEST bindings) each:(do (key value) (_parser setValue:value forKey:key)))
-                   (set result nil)
-                   (try (set result (progn ,@*body))
-                        (catch (exception)
-                               (if (exception isKindOfClass:(NuReturnException class))
-                                   (then (set result (exception value))
-                                         (else (puts (exception description))))
-                                   (else (puts (exception description))
-                                         (throw exception)))))
-                   (if result
-                       (then (RESPONSE setBody:result)
-                             RESPONSE)
-                       (else nil)))))
+       `(_httphandler "PUT" ,path ,*body))
 
-;; use this to declare delete actions.
 (macro delete (path *body)
-       `((RadHTTPService sharedService)
-         addHandlerWithHTTPMethod:"DELETE"
-         path:,path
-         block:(do (REQUEST)
-                   (set RESPONSE ((RadHTTPResponse alloc) init))
-                   ((REQUEST bindings) each:(do (key value) (_parser setValue:value forKey:key)))
-                   (set result nil)
-                   (try (set result (progn ,@*body))
-                        (catch (exception)
-                               (if (exception isKindOfClass:(NuReturnException class))
-                                   (then (set result (exception value))
-                                         (else (puts (exception description))))
-                                   (else (puts (exception description))
-                                         (throw exception)))))
-                   (if result
-                       (then (RESPONSE setBody:result)
-                             RESPONSE)
-                       (else nil)))))
+       `(_httphandler "DELETE" ,path ,*body))
 
-;; use this to declare file handlers.
+;; Use this to declare "get" handlers for files in a specified directory.
+
 (macro files (path directory)
        `((RadHTTPService sharedService)
          addHandlerWithPath:,path directory:,directory))
+
+;; Use these additional macros to declare WebDAV actions.
+
+(macro options (path *body)
+       `(_httphandler "OPTIONS" ,path ,*body))
+
+(macro propfind (path *body)
+       `(_httphandler "PROPFIND" ,path ,*body))
+
+(macro proppatch (path *body)
+       `(_httphandler "PROPPATCH" ,path ,*body))
+
+(macro mkcol (path *body)
+       `(_httphandler "MKCOL" ,path ,*body))
+
+(macro copy (path *body)
+       `(_httphandler "COPY" ,path ,*body))
+
+(macro move (path *body)
+       `(_httphandler "MOVE" ,path ,*body))
+
+(macro lock (path *body)
+       `(_httphandler "LOCK" ,path ,*body))
+
+(macro unlock (path *body)
+       `(_httphandler "UNLOCK" ,path ,*body))
+
+

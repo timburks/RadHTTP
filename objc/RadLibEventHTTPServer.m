@@ -29,6 +29,7 @@
 #include <arpa/inet.h>                            // inet_ntoa
 #include <event2/dns.h>
 #include <event2/dns_compat.h>
+#include <event2/event.h>
 
 #include <signal.h>                               // SIGPIPE
 
@@ -253,6 +254,22 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
     @catch (NSException *exception) {
         NSLog(@"Error while responding to request (%@): %@", request.path, [exception reason]);
     }
+}
+
+// Groundwork for custom events. The idea is that action handlers would use addEventWithBlock: 
+// to schedule longer-running actions so that they could respond more quickly to requests.
+void cb_func(evutil_socket_t fd, short what, void *arg)
+{
+    id object = (__bridge id) arg;
+    static int n_calls = 0;
+    printf("cb_func called %d times so far.\n", ++n_calls);
+}
+
+- (void) addEventWithBlock:(id) block
+{
+    struct timeval zero_sec = { 0, 0 };
+    struct event *ev = event_new(event_base, -1, 0, cb_func, NULL);
+    event_add(ev, &zero_sec);
 }
 
 @end

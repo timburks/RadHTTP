@@ -11,6 +11,7 @@
 @property (nonatomic, strong) NSData *body;
 @property (nonatomic, assign) int status;
 @property (nonatomic, strong) NSMutableDictionary *headers;
+@property (nonatomic, assign) BOOL exit;
 
 - (void) setValue:(NSString *) value forHTTPHeader:(NSString *) header;
 - (NSString *) redirectResponseToLocation:(NSString *) location;

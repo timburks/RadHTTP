@@ -8,7 +8,7 @@
 #import "RadHTTPResponse.h"
 
 @implementation RadHTTPResponse
-@synthesize status, headers, body = _body;
+@synthesize status, headers, body = _body, exit;
 
 - (id) init 
 {

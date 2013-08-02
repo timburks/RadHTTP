@@ -246,6 +246,9 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
             NSLog(@"RESPONSE %d %@", response.status, [rad_response_headers_helper(req) description]);
         }
         rad_response_helper(req, response);
+        if (response.exit) {
+		event_base_loopexit(event_base, NULL);
+        }
     }
     @catch (NSException *exception) {
         NSLog(@"Error while responding to request (%@): %@", request.path, [exception reason]);

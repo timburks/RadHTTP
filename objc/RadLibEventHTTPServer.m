@@ -256,16 +256,18 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
     }
 }
 
-// Groundwork for custom events. The idea is that action handlers would use addEventWithBlock: 
-// to schedule longer-running actions so that they could respond more quickly to requests.
+// Support for custom events. Action handlers can use addEventWithOperation:
+// to schedule longer-running actions so that they can respond more quickly to requests.
 void cb_func(evutil_socket_t fd, short what, void *arg)
 {
-    id object = (__bridge id) arg;
-    static int n_calls = 0;
-    printf("cb_func called %d times so far.\n", ++n_calls);
+   id object = (__bridge id) arg;
+   if ([object isKindOfClass:[NSOperation class]]) {
+	NSOperation *operation = (NSOperation *) object;
+	[operation main];
+    }
 }
 
-- (void) addEventWithBlock:(id) block
+- (void) addEventWithOperation:(NSOperation *) operation
 {
     struct timeval zero_sec = { 0, 0 };
     struct event *ev = event_new(event_base, -1, 0, cb_func, NULL);

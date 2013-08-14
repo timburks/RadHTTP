@@ -38,6 +38,7 @@
     struct event_base *event_base;
     struct evhttp *httpd;
 }
+@property (nonatomic, strong) NSMutableArray *operationQueue;
 
 - (void)processRequest:(RadHTTPRequest *)request;
 
@@ -121,6 +122,7 @@ static void rad_request_handler(struct evhttp_request *req, void *server_context
 }
 
 @implementation RadLibEventHTTPServer
+@synthesize operationQueue;
 
 - (id)initWithService:(RadHTTPService *) service
 {
@@ -129,6 +131,7 @@ static void rad_request_handler(struct evhttp_request *req, void *server_context
         evdns_init();
         httpd = evhttp_new(event_base);
         evhttp_set_gencb(httpd, rad_request_handler, (__bridge void *)(self));
+	operationQueue = [NSMutableArray array];
     }
     return self;
 }
@@ -261,17 +264,17 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
 // to schedule longer-running actions so that they can respond more quickly to requests.
 void cb_func(evutil_socket_t fd, short what, void *arg)
 {
-   id object = (__bridge id) arg;
-   if ([object isKindOfClass:[NSOperation class]]) {
-	NSOperation *operation = (NSOperation *) object;
-	[operation main];
-    }
+   RadLibEventHTTPServer *server = (__bridge RadLibEventHTTPServer *) arg;
+   NSOperation *operation = [server.operationQueue objectAtIndex:0];
+   [operation main];
+   [server.operationQueue removeObjectAtIndex:0];
 }
 
 - (void) addEventWithOperation:(NSOperation *) operation
 {
+    [self.operationQueue addObject:operation];
     struct timeval zero_sec = { 0, 0 };
-    struct event *ev = event_new(event_base, -1, 0, cb_func, NULL);
+    struct event *ev = event_new(event_base, -1, 0, cb_func, (__bridge void *) self);
     event_add(ev, &zero_sec);
 }
 

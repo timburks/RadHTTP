@@ -7,6 +7,8 @@
 //
 #import <Foundation/Foundation.h>
 
+@class RadHTTPServer;
+
 @protocol RadHTTPResponder <NSObject>
 - (void) respondWithMessageData:(NSData *) data;
 @end
@@ -24,6 +26,7 @@
 - (NSDictionary *) post;
 
 @property (nonatomic, weak) id<RadHTTPResponder> connection;
+@property (nonatomic, weak) RadHTTPServer *server;
 @property (nonatomic, assign) void *context;
 
 @end

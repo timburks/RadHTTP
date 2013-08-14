@@ -118,6 +118,7 @@
     request.headers = (__bridge NSDictionary *) headers;
     request.body = self.content;
     request.connection = self;
+    request.server = self.server;
     if (URL) CFRelease(URL);
     if (method) CFRelease(method);
     if (headers) CFRelease(headers);

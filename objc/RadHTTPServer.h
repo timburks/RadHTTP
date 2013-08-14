@@ -22,5 +22,7 @@
 - (id)initWithService:(RadHTTPService *) service;
 - (void) start;
 - (void) run;
+- (void) addEventWithOperation:(NSOperation *) operation;
+
 @end
 

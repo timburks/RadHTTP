@@ -116,6 +116,7 @@ static void rad_request_handler(struct evhttp_request *req, void *server_context
     request.headers = rad_request_headers_helper(req);
     request.body = rad_request_body_helper(req);
     request.context = req;
+    request.server = server;
     return [server processRequest:request];
 }
 

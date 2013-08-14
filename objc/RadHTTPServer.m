@@ -68,4 +68,9 @@
     }
 }
 
+- (void) addEventWithOperation:(NSOperation *) operation
+{
+	
+}
+
 @end

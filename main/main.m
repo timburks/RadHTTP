@@ -4,7 +4,7 @@
 // this expects RadHTTP to be installed as a separate framework
 // typically in /Library/Frameworks
 
-#import "RadLibevhtpServer.h"
+#import "RadLibEVHTPServer.h"
 #import "RadLibEventHTTPServer.h"
 #import "RadCocoaHTTPServer.h"
 #import "RadHTTPService.h"

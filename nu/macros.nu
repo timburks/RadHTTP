@@ -46,15 +46,6 @@
 
 ;; Use these additional macros to declare WebDAV actions.
 
-(macro options (path *body)
-       `(_httphandler "OPTIONS" ,path ,*body))
-
-(macro propfind (path *body)
-       `(_httphandler "PROPFIND" ,path ,*body))
-
-(macro proppatch (path *body)
-       `(_httphandler "PROPPATCH" ,path ,*body))
-
 (macro mkcol (path *body)
        `(_httphandler "MKCOL" ,path ,*body))
 
@@ -64,10 +55,26 @@
 (macro move (path *body)
        `(_httphandler "MOVE" ,path ,*body))
 
+(macro options (path *body)
+       `(_httphandler "OPTIONS" ,path ,*body))
+
+(macro propfind (path *body)
+       `(_httphandler "PROPFIND" ,path ,*body))
+
+(macro proppatch (path *body)
+       `(_httphandler "PROPPATCH" ,path ,*body))
+
 (macro lock (path *body)
        `(_httphandler "LOCK" ,path ,*body))
 
 (macro unlock (path *body)
        `(_httphandler "UNLOCK" ,path ,*body))
 
+(macro trace (path *body)
+       `(_httphandler "TRACE" ,path ,*body))
 
+(macro connect (path *body)
+       `(_httphandler "CONNECT" ,path ,*body))
+
+(macro patch (path *body)
+       `(_httphandler "PATCH" ,path ,*body))

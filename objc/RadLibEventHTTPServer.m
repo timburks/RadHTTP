@@ -45,7 +45,7 @@
 @end
 
 
-NSString *method_for_request(struct evhttp_request *req)
+static NSString *method_for_request(struct evhttp_request *req)
 {
     switch (req->type) {
         case EVHTTP_REQ_GET:
@@ -131,7 +131,7 @@ static void rad_request_handler(struct evhttp_request *req, void *server_context
         evdns_init();
         httpd = evhttp_new(event_base);
         evhttp_set_gencb(httpd, rad_request_handler, (__bridge void *)(self));
-	operationQueue = [NSMutableArray array];
+        operationQueue = [NSMutableArray array];
     }
     return self;
 }
@@ -196,10 +196,8 @@ static NSDictionary *rad_response_headers_helper(struct evhttp_request *req)
     return dict;
 }
 
-void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
-{
-    NSString *message = @"message";
-    
+static void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
+{    
     evhttp_clear_headers(req->output_headers);
     for (id key in [response.headers allKeys]) {
         id value = [response.headers objectForKey:key];
@@ -224,7 +222,7 @@ void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *response)
         sprintf(buffer, "%d", (int) [response.body length]);
         evhttp_add_header(req->output_headers, "Content-Length", buffer);
     }
-    evhttp_send_reply(req, response.status, [message cStringUsingEncoding:NSUTF8StringEncoding], buf);
+    evhttp_send_reply(req, response.status, "", buf);
     evbuffer_free(buf);
 }
 

@@ -4,6 +4,7 @@
 // this expects RadHTTP to be installed as a separate framework
 // typically in /Library/Frameworks
 
+#import "RadLibevhtpServer.h"
 #import "RadLibEventHTTPServer.h"
 #import "RadCocoaHTTPServer.h"
 #import "RadHTTPService.h"
@@ -112,7 +113,8 @@ int main (int argc, const char *argv[])
          }];
         
         //RadCocoaHTTPServer *server = [[RadCocoaHTTPServer alloc] initWithService:service];
-        RadLibEventHTTPServer *server = [[RadLibEventHTTPServer alloc] initWithService:service];
+        //RadLibEventHTTPServer *server = [[RadLibEventHTTPServer alloc] initWithService:service];
+        RadLibEVHTPServer *server = [[RadLibEVHTPServer alloc] initWithService:service];
 
         [server start];
         [[NSRunLoop mainRunLoop] run];

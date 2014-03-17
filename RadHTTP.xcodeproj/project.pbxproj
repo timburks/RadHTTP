@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2203867F18D6BB330091A43B /* RadLibEVHTPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 2203867E18D6BB330091A43B /* RadLibEVHTPServer.m */; };
 		22E9FD351745F55500FE9B01 /* RadHTTPService.m in Sources */ = {isa = PBXBuildFile; fileRef = 22E9FD341745F55500FE9B01 /* RadHTTPService.m */; };
 		22FF922E174592DB00ADC59E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 22FF922D174592DB00ADC59E /* Foundation.framework */; };
 		22FF92501745939E00ADC59E /* RadCocoaHTTPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 22FF923F1745939E00ADC59E /* RadCocoaHTTPServer.m */; };
@@ -35,6 +36,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		2203867D18D6BB330091A43B /* RadLibEVHTPServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadLibEVHTPServer.h; sourceTree = "<group>"; };
+		2203867E18D6BB330091A43B /* RadLibEVHTPServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RadLibEVHTPServer.m; sourceTree = "<group>"; };
 		22E9FD331745F55500FE9B01 /* RadHTTPService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RadHTTPService.h; sourceTree = "<group>"; };
 		22E9FD341745F55500FE9B01 /* RadHTTPService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RadHTTPService.m; sourceTree = "<group>"; };
 		22FF922A174592DB00ADC59E /* RadHTTP */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = RadHTTP; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -133,6 +136,8 @@
 				22FF923F1745939E00ADC59E /* RadCocoaHTTPServer.m */,
 				22FF924D1745939E00ADC59E /* RadLibEventHTTPServer.h */,
 				22FF924E1745939E00ADC59E /* RadLibEventHTTPServer.m */,
+				2203867D18D6BB330091A43B /* RadLibEVHTPServer.h */,
+				2203867E18D6BB330091A43B /* RadLibEVHTPServer.m */,
 			);
 			path = objc;
 			sourceTree = SOURCE_ROOT;
@@ -171,7 +176,7 @@
 		22FF9222174592DB00ADC59E /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0460;
+				LastUpgradeCheck = 0510;
 				ORGANIZATIONNAME = "Radtastical Inc";
 			};
 			buildConfigurationList = 22FF9225174592DB00ADC59E /* Build configuration list for PBXProject "RadHTTP" */;
@@ -198,6 +203,7 @@
 			files = (
 				22FF92501745939E00ADC59E /* RadCocoaHTTPServer.m in Sources */,
 				22FF92511745939E00ADC59E /* RadHTTPHelpers.m in Sources */,
+				2203867F18D6BB330091A43B /* RadLibEVHTPServer.m in Sources */,
 				22FF92521745939E00ADC59E /* RadHTTPRequest.m in Sources */,
 				22FF92531745939E00ADC59E /* RadHTTPRequestHandler.m in Sources */,
 				22FF92541745939E00ADC59E /* RadHTTPRequestRouter.m in Sources */,
@@ -216,7 +222,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -249,7 +254,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -274,9 +278,23 @@
 		22FF9239174592DB00ADC59E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				FRAMEWORK_SEARCH_PATHS = /Library/Frameworks;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/usr/local/include,
+				);
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_LDFLAGS = (
+					"-levhtp",
+					"-lssl",
+					"-lcrypto",
+					"-levent_openssl",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = "";
+				USER_HEADER_SEARCH_PATHS = "";
 				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
@@ -285,8 +303,21 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/usr/local/include,
+				);
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_LDFLAGS = (
+					"-levhtp",
+					"-lssl",
+					"-lcrypto",
+					"-levent_openssl",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = "";
+				USER_HEADER_SEARCH_PATHS = "";
 				VALID_ARCHS = x86_64;
 			};
 			name = Release;

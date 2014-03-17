@@ -24,14 +24,14 @@
       ("Darwin"
                (set @arch (list "x86_64"))
                (set @cflags "-DDARWIN -g -fobjc-arc")
-               (set @ldflags "-framework Foundation -framework CoreServices -levent"))
+               (set @ldflags "-framework Foundation -framework CoreServices -levent -levent_openssl -levhtp -lcrypto -lssl"))
       ("Linux"
               (set @arch (list "x86_64"))
               (set gnustep_flags ((NSString stringWithShellCommand:"gnustep-config --objc-flags") chomp))
               (set gnustep_libs ((NSString stringWithShellCommand:"gnustep-config --base-libs") chomp))
               (set @cflags "-g -DLINUX -I/usr/local/include #{gnustep_flags} -fconstant-string-class=NSConstantString -fobjc-nonfragile-abi -fobjc-arc -fblocks")
 
-              (set @ldflags "#{gnustep_libs} -ldispatch -levent"))
+              (set @ldflags "#{gnustep_libs} -ldispatch -levent -levent_openssl -levhtp -lcrypto -lssl"))
       (else nil))
 
 

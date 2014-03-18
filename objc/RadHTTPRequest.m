@@ -29,6 +29,11 @@
     return [self.URL query];
 }
 
+- (NSString *) fragment
+{
+    return [self.URL fragment];
+}
+
 - (NSDictionary *) cookies
 {
     NSRegularExpression *cookie_pattern = [NSRegularExpression regularExpressionWithPattern:@"[ ]*([^=]*)=(.*)"

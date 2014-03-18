@@ -245,13 +245,13 @@ static void rad_response_helper(evhtp_request_t *req, RadHTTPResponse *response)
         evhtp_headers_add_header(req->headers_out,
                                  evhtp_header_new("Content-Length", buffer, 1, 1));
     }
-    evhtp_send_reply(req, EVHTP_RES_OK);
+    evhtp_send_reply(req, response.status);
 }
 
 - (void) processRequest:(RadHTTPRequest *)request
 {
     if (self.verbose) {
-        NSLog(@"%@ %@ %@\n%@",
+        NSLog(@"REQUEST %@ %@ %@\n%@",
               [request URL],
               [request method],
               [request path],

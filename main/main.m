@@ -115,7 +115,7 @@ int main (int argc, const char *argv[])
         //RadCocoaHTTPServer *server = [[RadCocoaHTTPServer alloc] initWithService:service];
         //RadLibEventHTTPServer *server = [[RadLibEventHTTPServer alloc] initWithService:service];
         RadLibEVHTPServer *server = [[RadLibEVHTPServer alloc] initWithService:service];
-
+        [server setVerbose:YES];
         [server start];
         [[NSRunLoop mainRunLoop] run];
     }

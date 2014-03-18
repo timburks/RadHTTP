@@ -21,6 +21,7 @@
 @property (nonatomic, strong) NSMutableDictionary *bindings;
 
 - (NSString *) path;
+- (NSString *) fragment;
 - (NSString *) query;
 - (NSDictionary *) cookies;
 - (NSDictionary *) post;

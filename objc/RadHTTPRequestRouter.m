@@ -89,7 +89,7 @@ static NSString *spaces(int n)
         }
         @catch (id exception) {
             NSLog(@"Handler exception: %@ %@", [exception description], [request description]);
-            if (YES) {  // DEBUGGING                
+            if (YES) {  // DEBUGGING
                 RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
                 [response setValue:@"text/plain" forHTTPHeader:@"Content-Type"];
                 response.body = [[exception description] dataUsingEncoding:NSUTF8StringEncoding];
@@ -122,7 +122,7 @@ static NSString *spaces(int n)
             else {
                 [[request bindings] setObject:key
                                        forKey:[childToken substringToIndex:([childToken length]-1)]];
-                if ((response = [child routeAndHandleRequest:request parts:parts level:(level + 1)]) 
+                if ((response = [child routeAndHandleRequest:request parts:parts level:(level + 1)])
                     && ![response isEqual:[NSNull null]]) {
                     return response;
                 }
@@ -156,22 +156,30 @@ static NSString *spaces(int n)
     }
 }
 
-- (RadHTTPResponse *) responseForHTTPRequest:(RadHTTPRequest *) request 
+- (RadHTTPResponse *) responseForHTTPRequest:(RadHTTPRequest *) request
 {
     id httpMethod = request.method;
-    if ([httpMethod isEqualToString:@"HEAD"])
-        httpMethod = @"GET";
-    
-    NSArray *parts = [[NSString stringWithFormat:@"%@%@", httpMethod, [request path]] 
+    NSArray *parts = [[NSString stringWithFormat:@"%@%@", httpMethod, [request path]]
                       componentsSeparatedByString:@"/"];
     if (([parts count] > 2) && [[parts lastObject] isEqualToString:@""]) {
         parts = [parts subarrayWithRange:NSMakeRange(0, [parts count]-1)];
     }
+    RadHTTPResponse *response = [self routeAndHandleRequest:request
+                                                      parts:parts
+                                                      level:0];
     
-   return [self routeAndHandleRequest:request 
-                                parts:parts 
-                                level:0];
-
+    if (!response && [httpMethod isEqualToString:@"HEAD"]) {
+        httpMethod = @"GET";
+        NSArray *parts = [[NSString stringWithFormat:@"%@%@", httpMethod, [request path]]
+                          componentsSeparatedByString:@"/"];
+        if (([parts count] > 2) && [[parts lastObject] isEqualToString:@""]) {
+            parts = [parts subarrayWithRange:NSMakeRange(0, [parts count]-1)];
+        }
+        response = [self routeAndHandleRequest:request
+                                         parts:parts
+                                         level:0];
+    }
+    return response;
 }
 
 

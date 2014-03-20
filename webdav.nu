@@ -38,13 +38,17 @@
      ((NSFileManager defaultManager) fileExistsAtPath:path))
 
 (get "/*path:"
+     (puts "GET")
      (puts (REQUEST path))
-     (puts (REQUEST fragment))
      (set pathToGet (+ ROOT "/" *path))
+     (puts pathToGet)
      (cond ((not (file-exists pathToGet))
+            (puts "NO FILE EXISTS")
             (RESPONSE setStatus:404)
             "")
-           (else (NSData dataWithContentsOfFile:(+ ROOT "/" *path)))))
+           (else
+                (set data (NSData dataWithContentsOfFile:(+ ROOT "/" *path)))
+                (if data (then data) (else "")))))
 
 (put "/*path:"
      (puts "PUTPUTPUTPUTPUT")
@@ -72,6 +76,9 @@
                        (else
                             (puts "deleting #{pathToDelete}")
                             (system "rm -rf #{pathToDelete}")
+                            ;; delete properties for this path
+                            (set mongo (RadMongoDB new))
+                            (mongo removeWithCondition:(dict path:pathToDelete) fromCollection:"webdav.properties")
                             "ok")))))
 
 (options "/*path:"
@@ -82,48 +89,55 @@
          "")
 
 (send &D=resourcetype setEmpty:YES)
+(send &D=collection setEmpty:YES)
 
 (macro &MARKUP (tag *stuff)
        `(progn (set operator (NuMarkupOperator operatorWithTag:,tag))
                (operator ,@*stuff)))
 
+(def CDATA (value)
+     (+ "<![CDATA[" value "]]>"))
+
 (propfind "/*path:"
           (puts "propfind '#{*path}'")
-          (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
-          (puts string )
+          (puts (REQUEST body))
           
-          (set mongo (RadMongoDB new))
-          (mongo connect)
-          
-          (set reader ((RadXMLReader alloc) init))
-          (set command (reader readXMLFromString:string error:nil))
-          
-          (unless command
-                  (RESPONSE setStatus:400)
-                  (return "invalid XML"))
-          
-          (puts (command description))
-          (set props "")
-          (if (eq (command name) "propfind")
-              ((command children) each:
-               (do (prop)
-                   (puts "PROP")
-                   (puts (prop name))
-                   (if (eq (prop name) "prop")
-                       ((prop children) each:
-                        (do (keyEntity)
-                            (puts "KEY")
-                            (set key (keyEntity name))
-                            (puts key)
-                            (set pathkey (+ *path "." key))
-                            (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
-                            (if property
-                                (puts (property description))
-                                (set value (property value:))
-                                (puts value)
-                                (set m (&MARKUP key xmlns:"http://example.com/neon/litmus/" value))
-                                (props appendString:m))))))))
-          (puts props)
+          (set props nil)
+          (if (REQUEST body)
+              (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
+              (puts string)
+              (set mongo (RadMongoDB new))
+              (mongo connect)
+              
+              (set reader ((RadXMLReader alloc) init))
+              (set command (reader readXMLFromString:string error:nil))
+              
+              (unless command
+                      (RESPONSE setStatus:400)
+                      (return "invalid XML"))
+              
+              (puts (command description))
+              (set props "")
+              (if (eq (command name) "propfind")
+                  ((command children) each:
+                   (do (prop)
+                       (puts "PROP")
+                       (puts (prop name))
+                       (if (eq (prop name) "prop")
+                           ((prop children) each:
+                            (do (keyEntity)
+                                (puts "KEY")
+                                (set key (keyEntity name))
+                                (puts key)
+                                (set pathkey (+ *path "." key))
+                                (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
+                                (if property
+                                    (puts (property description))
+                                    (set value (property value:))
+                                    (puts value)
+                                    (set m (&MARKUP key xmlns:"http://example.com/neon/litmus/" value))
+                                    (props appendString:m))))))))
+              (puts props))
           (if (and props (props length))
               (then
                    (RESPONSE setStatus:207)
@@ -135,43 +149,64 @@
                    (puts result)
                    result)
               (else
+                   (set depth ((REQUEST headers) Depth:))
+                   (puts "DEPTH: #{depth}")
                    (set files ((NSFileManager defaultManager)
                                contentsOfDirectoryAtPath:(+ ROOT "/" *path) error:nil))
-                   (set files (array (+ ROOT "/" *path)))
+                   (puts "FILES")
+                   (puts (files description))
+                   ;(set files (array (+ ROOT "/" *path)))
+                   
+                   (set pathForHREF *path)
+                   (if (pathForHREF length) (set pathForHREF (+ pathForHREF "/")))
                    
                    (RESPONSE setStatus:207)
                    (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                                   (&D=multistatus xmlns:D:"DAV:"
+                                                  (&D=response (&D=href (+ SERVER "/" pathForHREF))
+                                                               (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                                     ;(&D=getcontentlength (attributes NSFileSize:))
+                                                                                     (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                                     (&D=displayname (CDATA "."))
+                                                                                     (&D=resourcetype (&D=collection)))
+                                                                            (&D=status "HTTP/1.1 200 OK")))
+                                                  "\n"
                                                   (files map:
                                                          (do (filename)
-                                                             (set resourcename (filename stringByReplacingOccurrencesOfString:ROOT withString:SERVER))
+                                                             (set resourcename (+ SERVER "/" pathForHREF filename))
+                                                             (set localname (+ ROOT "/" *path "/" filename))
                                                              (set exists ((NSFileManager defaultManager)
-                                                                          fileExistsAtPath:filename
+                                                                          fileExistsAtPath:localname
                                                                           isDirectory:(set isDirectory (NuPointer new))))
-                                                             (set attributes ((NSFileManager defaultManager) attributesOfItemAtPath:filename error:nil))
+                                                             (set attributes ((NSFileManager defaultManager)
+                                                                              attributesOfItemAtPath:localname error:nil))
                                                              (NSLog "FILE ATTRIBUTES")
                                                              (NSLog (attributes description))
                                                              (NSLog "is directory: #{(isDirectory value)}")
-                                                             (&D=response (&D=href resourcename)
-                                                                          (&D=propstat (&D=prop (&D=getlastmodified ((attributes NSFileModificationDate:) description))
-                                                                                                (&D=getcontentlength (attributes NSFileSize:))
-                                                                                                (&D=creationdate ((attributes NSFileCreationDate:) description))
-                                                                                                (&D=resourcetype (if (isDirectory value)
-                                                                                                                     (then (&D=collection))))
-                                                                                                ;(&D=displayname "Example HTML resource")
-                                                                                                ;(&D=getcontenttype "text/plain")
-                                                                                                ;(&D=getetag "zzyzx")
-                                                                                                ;(&D=supportedlock (&D=lockentry (&D=lockscope (&D=exclusive))
-                                                                                                ;                                (&D=locktype (&D=write)))
-                                                                                                ;                  (&D=lockentry (&D=lockscope (&D=shared))
-                                                                                                ;                                (&D=locktype (&D=write))))
-                                                                                                )
-                                                                                       (&D=status "HTTP/1.1 200 OK"))))))))
+                                                             (+ (&D=response (&D=href resourcename)
+                                                                             (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                                                   (&D=getcontentlength (attributes NSFileSize:))
+                                                                                                   (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                                                   (&D=resourcetype (if (isDirectory value)
+                                                                                                                        (then (&D=collection))))
+                                                                                                   ;(&D=displayname (CDATA filename))
+                                                                                                   ;(&D=getcontenttype "text/plain")
+                                                                                                   ;(&D=getetag "zzyzx")
+                                                                                                   ;(&D=supportedlock (&D=lockentry (&D=lockscope (&D=exclusive))
+                                                                                                   ;                                (&D=locktype (&D=write)))
+                                                                                                   ;                  (&D=lockentry (&D=lockscope (&D=shared))
+                                                                                                   ;                                (&D=locktype (&D=write))))
+                                                                                                   )
+                                                                                          (&D=status "HTTP/1.1 200 OK")))
+                                                                "\n"))))))
+                   (puts result)
                    result)))
+
 
 (proppatch "/*path:"
            (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
            (set reader ((RadXMLReader alloc) init))
+           (puts string)
            (set stuff (reader readXMLFromString:string error:nil))
            (set mongo (RadMongoDB new))
            (mongo connect)
@@ -253,10 +288,11 @@
       
       (set destination ((REQUEST headers) Destination:))
       (puts "DESTINATION: #{destination}")
+      (set destination (destination stringByReplacingOccurrencesOfString:SERVER withString:""))
       
       (set overwrite ((REQUEST headers) Overwrite:))
       
-      (set pathToMoveTo (+ ROOT (destination stringByReplacingOccurrencesOfString:SERVER withString:"")))
+      (set pathToMoveTo (+ ROOT destination))
       (puts "copying #{pathToMoveFrom} to #{pathToMoveTo}")
       
       (set destinationExists (file-exists pathToMoveTo))
@@ -270,6 +306,18 @@
              "")
             (else
                  (system "mv #{pathToMoveFrom} #{pathToMoveTo}")
+                 ;; transfer properties from source path to destination path
+                 (set mongo (RadMongoDB new))
+                 (mongo connect)
+                 (set properties (mongo findArray:(dict path:*path) inCollection:"webdav.properties"))
+                 (puts "properties to move")
+                 (puts (properties description))
+                 (properties each:
+                             (do (property)
+                                 (property path:destination pathkey:(+ destination "." (property key:)))
+                                 (property removeObjectForKey:"_id")
+                                 (puts (property description))
+                                 (mongo updateObject:property inCollection:"webdav.properties" withCondition:(dict pathkey:(property pathkey:)) insertIfNecessary:NO updateMultipleEntries:NO)))
                  (if destinationExists
                      (then (RESPONSE setStatus:204))
                      (else (RESPONSE setStatus:201)))

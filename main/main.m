@@ -40,6 +40,15 @@ int main (int argc, const char *argv[])
         
         RadHTTPService *service = [[RadHTTPService alloc] init];
         
+       [service addHandlerWithHTTPMethod:@"HEAD" path:@"/*path:" block:
+         ^(RadHTTPRequest *request) {
+             RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
+             response.body = nil;
+             NSLog(@"hit HEAD");
+             return response;
+         }];
+    
+        
         [service addHandlerWithHTTPMethod:@"GET" path:@"/" block:
          ^(RadHTTPRequest *request) {
              RadHTTPResponse *response = [[RadHTTPResponse alloc] init];

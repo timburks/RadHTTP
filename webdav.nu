@@ -11,6 +11,13 @@
 (load "RadCrypto")
 (load "RadMongoDB")
 
+(puts "STARTUP: REMOVE ALL PROPERTIES")
+(set mongo (RadMongoDB new))
+(mongo connect)
+(mongo removeWithCondition:(dict) fromCollection:"webdav.properties")
+(set $all (mongo findArray:nil inCollection:"webdav.properties"))
+(puts ($all description))
+
 (set ROOT "webdav")
 (set SERVER "http://localhost:8080")
 
@@ -23,8 +30,7 @@
      (set data (NSData dataWithBase64EncodedString:b64))
      (set pair ((NSString alloc) initWithData:data encoding:NSUTF8StringEncoding))
      (puts pair)
-     nil
-     )
+     nil)
 
 (get "/owncloud/status.php"
      (set response (dict installed:"true"
@@ -43,12 +49,10 @@
      (set pathToGet (+ ROOT "/" *path))
      (puts pathToGet)
      (cond ((not (file-exists pathToGet))
-            (puts "NO FILE EXISTS")
             (RESPONSE setStatus:404)
-            "")
-           (else
-                (set data (NSData dataWithContentsOfFile:(+ ROOT "/" *path)))
-                (if data (then data) (else "")))))
+            "Not found")
+           (else (set data (NSData dataWithContentsOfFile:(+ ROOT "/" *path)))
+                 (if data (then data) (else "")))))
 
 (put "/*path:"
      (puts "PUTPUTPUTPUTPUT")
@@ -99,53 +103,63 @@
      (+ "<![CDATA[" value "]]>"))
 
 (propfind "/*path:"
-          (puts "propfind '#{*path}'")
-          (puts (REQUEST body))
+          (puts "PROPFIND '#{*path}'")
+          (if (REQUEST body) (puts (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding)))
+          
+          (set localname (+ ROOT "/" *path))
+          (set attributes ((NSFileManager defaultManager)
+                           attributesOfItemAtPath:localname error:nil))
+          (puts "ATTRIBUTES")
+          (puts (attributes description))
+          (if (eq attributes nil)
+              (RESPONSE setStatus:404)
+              (return "NOT FOUND"))
           
           (set props nil)
           (if (REQUEST body)
               (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
               (puts string)
-              (set mongo (RadMongoDB new))
-              (mongo connect)
               
               (set reader ((RadXMLReader alloc) init))
               (set command (reader readXMLFromString:string error:nil))
-              
               (unless command
                       (RESPONSE setStatus:400)
                       (return "invalid XML"))
-              
-              (puts (command description))
-              (set props "")
-              (if (eq (command name) "propfind")
+              (if (eq (command universalName) "{DAV:}propfind")
+                  (set mongo (RadMongoDB new))
+                  (mongo connect)
+                  (set propstats "")
                   ((command children) each:
                    (do (prop)
                        (puts "PROP")
                        (puts (prop name))
-                       (if (eq (prop name) "prop")
+                       (if (eq (prop universalName) "{DAV:}prop")
                            ((prop children) each:
-                            (do (keyEntity)
-                                (puts "KEY")
-                                (set key (keyEntity name))
+                            (do (keyNode)
+                                (puts "REQUESTING KEY")
+                                (set key (keyNode universalName))
                                 (puts key)
-                                (set pathkey (+ *path "." key))
+                                (set pathkey (+ *path " " key))
                                 (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
                                 (if property
-                                    (puts (property description))
-                                    (set value (property value:))
-                                    (puts value)
-                                    (set m (&MARKUP key xmlns:"http://example.com/neon/litmus/" value))
-                                    (props appendString:m))))))))
-              (puts props))
-          (if (and props (props length))
+                                    (then
+                                         (puts (property description))
+                                         (set value (property value:))
+                                         (puts value)
+                                         (set m (&D=propstat (&D=prop (&MARKUP (property keyLocalName:) xmlns:(property keyNamespaceURI:) value))
+                                                             (&D=status "HTTP/1.1 200 OK")))
+                                         (propstats appendString:m))
+                                    (else
+                                         )))))))
+                  (puts propstats)))
+          (if (and propstats (propstats length))
               (then
                    (RESPONSE setStatus:207)
                    (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                                   (&D=multistatus xmlns:D:"DAV:"
-                                                  (&D=response (&D=href *path)
-                                                               (&D=propstat (&D=prop props)
-                                                                            (&D=status "HTTP/1.1 200 OK"))))))
+                                                  (&D=response (&D=href (+ SERVER  "/" *path))
+                                                               propstats))))
+                   (puts "RETURNING")
                    (puts result)
                    result)
               (else
@@ -167,7 +181,7 @@
                                                                (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
                                                                                      ;(&D=getcontentlength (attributes NSFileSize:))
                                                                                      (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                     (&D=displayname (CDATA "."))
+                                                                                     ;(&D=displayname (CDATA "."))
                                                                                      (&D=resourcetype (&D=collection)))
                                                                             (&D=status "HTTP/1.1 200 OK")))
                                                   "\n"
@@ -199,39 +213,59 @@
                                                                                                    )
                                                                                           (&D=status "HTTP/1.1 200 OK")))
                                                                 "\n"))))))
+                   (puts "RETURNING")
                    (puts result)
                    result)))
 
 
 (proppatch "/*path:"
+           (puts "PROPPATCH")
            (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
            (set reader ((RadXMLReader alloc) init))
-           (puts string)
-           (set stuff (reader readXMLFromString:string error:nil))
-           (set mongo (RadMongoDB new))
-           (mongo connect)
-           ((stuff children) each:
-            (do (node)
-                (set command (node name))
-                (if (eq command "D:set")
-                    ((node children) each:
-                     (do (node2)
-                         (set item (node2 name))
-                         (if (eq item "D:prop")
-                             ((node2 children) each:
-                              (do (node3)
-                                  (set key (node3 name))
-                                  ((node3 children) each:
-                                   (do (node4)
-                                       (set value (node4 text))
-                                       (puts "saving #{key}=#{value} for path #{*path}")
-                                       (set pathkey (+ *path "." key))
-                                       (mongo updateObject:(dict key:key value:value path:*path pathkey:pathkey)
-                                              inCollection:"webdav.properties"
-                                             withCondition:(dict pathkey:pathkey)
-                                         insertIfNecessary:YES
-                                     updateMultipleEntries:NO)
-                                       ))))))))))
+           (set command (reader readXMLFromString:string error:nil))
+           (if (eq (command universalName) "{DAV:}propertyupdate")
+               (set mongo (RadMongoDB new))
+               (mongo connect)
+               ((command children) each:
+                (do (element)
+                    (cond ((eq (element universalName) "{DAV:}set")
+                           ((element children) each:
+                            (do (propNode)
+                                (if (eq (propNode universalName) "{DAV:}prop")
+                                    ((propNode children) each:
+                                     (do (keyNode)
+                                         (set key (keyNode universalName))
+                                         ((keyNode children) each:
+                                          (do (valueNode)
+                                              (set value (valueNode text))
+                                              (puts "saving #{key}=#{value} for path #{*path}")
+                                              (set pathkey (+ *path " " key))
+                                              (mongo updateObject:(dict key:key
+                                                               keyLocalName:(keyNode localName)
+                                                            keyNamespaceURI:(keyNode namespaceURI)
+                                                                      value:value
+                                                                       path:*path
+                                                                    pathkey:pathkey)
+                                                     inCollection:"webdav.properties"
+                                                    withCondition:(dict pathkey:pathkey)
+                                                insertIfNecessary:YES
+                                            updateMultipleEntries:NO)))))))))
+                          ((eq (element universalName) "{DAV:}remove")
+                           ((element children) each:
+                            (do (propNode)
+                                (if (eq (propNode universalName) "{DAV:}prop")
+                                    ((propNode children) each:
+                                     (do (keyNode)
+                                         (set key (keyNode universalName))
+                                         (puts "removing value of #{key} for path #{*path}")
+                                         (set pathkey (+ *path " " key))
+                                         (mongo removeWithCondition:(dict pathkey:pathkey)
+                                                     fromCollection:"webdav.properties")))))))
+                          (else nil)))))
+           
+           (puts "SANITY CHECK PROPERTIES ON #{*path}")
+           (set properties (mongo findArray:(dict path:*path) inCollection:"webdav.properties"))
+           (puts (properties description))
            "ok")
 
 
@@ -288,11 +322,11 @@
       
       (set destination ((REQUEST headers) Destination:))
       (puts "DESTINATION: #{destination}")
-      (set destination (destination stringByReplacingOccurrencesOfString:SERVER withString:""))
+      (set destination (destination stringByReplacingOccurrencesOfString:(+ SERVER "/") withString:""))
       
       (set overwrite ((REQUEST headers) Overwrite:))
       
-      (set pathToMoveTo (+ ROOT destination))
+      (set pathToMoveTo (+ ROOT "/" destination))
       (puts "copying #{pathToMoveFrom} to #{pathToMoveTo}")
       
       (set destinationExists (file-exists pathToMoveTo))
@@ -314,14 +348,30 @@
                  (puts (properties description))
                  (properties each:
                              (do (property)
-                                 (property path:destination pathkey:(+ destination "." (property key:)))
+                                 (property path:destination
+                                        pathkey:(+ destination " " (property key:)))
                                  (property removeObjectForKey:"_id")
+                                 (puts "UPDATING")
                                  (puts (property description))
-                                 (mongo updateObject:property inCollection:"webdav.properties" withCondition:(dict pathkey:(property pathkey:)) insertIfNecessary:NO updateMultipleEntries:NO)))
+                                 (mongo updateObject:property
+                                        inCollection:"webdav.properties"
+                                       withCondition:(dict pathkey:(property pathkey:))
+                                   insertIfNecessary:YES
+                               updateMultipleEntries:NO)
+                                 (puts "MOVED PROPERTY - CHECK THE RESULTS")
+                                 (set check (mongo findArray:(dict pathkey:(property pathkey:)) inCollection:"webdav.properties"))
+                                 (puts (check description))
+                                 
+                                 
+                                 ))
+                 ;; remove the source properties
+                 (set properties (mongo findArray:(dict path:*path) inCollection:"webdav.properties"))
+                 (properties each:
+                             (do (property)
+                                 (mongo removeWithCondition:(dict _id:(property _id:)) fromCollection:"webdav.properties")))
                  (if destinationExists
                      (then (RESPONSE setStatus:204))
                      (else (RESPONSE setStatus:201)))
                  "")))
 
 (RadLibEVHTPServer run)
-

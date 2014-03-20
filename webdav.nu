@@ -139,18 +139,42 @@
                                 (puts "REQUESTING KEY")
                                 (set key (keyNode universalName))
                                 (puts key)
-                                (set pathkey (+ *path " " key))
-                                (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
-                                (if property
-                                    (then
-                                         (puts (property description))
-                                         (set value (property value:))
-                                         (puts value)
-                                         (set m (&D=propstat (&D=prop (&MARKUP (property keyLocalName:) xmlns:(property keyNamespaceURI:) value))
-                                                             (&D=status "HTTP/1.1 200 OK")))
-                                         (propstats appendString:m))
-                                    (else
-                                         )))))))
+                                
+                                (cond ((eq key "{DAV:}resourcetype")
+                                       (propstats appendString:
+                                                  (&D=propstat (&D=prop (&D=resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
+                                                                                             (then (&D=collection))
+                                                                                             (else nil))))
+                                                               (&D=status "HTTP/1.1 200 OK"))))
+                                      ((eq key "{DAV:}getcontentlength")
+                                       (propstats appendString:
+                                                  (&D=propstat (&D=prop (&D=getcontentlength (attributes NSFileSize:)))
+                                                               (&D=status "HTTP/1.1 200 OK"))))
+                                      ((eq key "{DAV:}getlastmodified")
+                                       (propstats appendString:
+                                                  (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT"))
+                                                               (&D=status "HTTP/1.1 200 OK"))))
+                                      ((eq key "{DAV:}displayname")
+                                       (propstats appendString:
+                                                  (&D=propstat (&D=prop (&D=displayname *path))
+                                                               (&D=status "HTTP/1.1 200 OK"))))
+                                      (else
+                                           (set pathkey (+ *path " " key))
+                                           (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
+                                           (if property
+                                               (then
+                                                    (puts (property description))
+                                                    (set value (property value:))
+                                                    (puts value)
+                                                    (propstats appendString:
+                                                               (&D=propstat (&D=prop (&MARKUP (property keyLocalName:)
+                                                                                              xmlns:(property keyNamespaceURI:) value))
+                                                                            (&D=status "HTTP/1.1 200 OK"))))
+                                               (else
+                                                    (propstats appendString:
+                                                               (&D=propstat (&D=prop (&MARKUP (keyNode localName) xmlns:(keyNode namespaceURI)))
+                                                                            (&D=status "HTTP/1.1 404 Not Found"))))
+                                               ))))))))
                   (puts propstats)))
           (if (and propstats (propstats length))
               (then
@@ -237,7 +261,7 @@
                                          (set key (keyNode universalName))
                                          ((keyNode children) each:
                                           (do (valueNode)
-                                              (set value (valueNode text))
+                                              (set value (valueNode stringValue))
                                               (puts "saving #{key}=#{value} for path #{*path}")
                                               (set pathkey (+ *path " " key))
                                               (mongo updateObject:(dict key:key

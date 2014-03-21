@@ -9,8 +9,13 @@
 
 (get "/get" "GET")
 (post "/post" "POST")
-(put "/put" "PUT")
+
+(put "/put"
+     (puts "PUTTING!")
+     (puts "#{((REQUEST body) length)} bytes")
+     "PUT")
+
 (delete "/delete" "DELETE")
 
-(RadHTTPServer run)
+(RadLibEVHTPServer run)
 

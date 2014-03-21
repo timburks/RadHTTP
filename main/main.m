@@ -40,6 +40,24 @@ int main (int argc, const char *argv[])
         
         RadHTTPService *service = [[RadHTTPService alloc] init];
         
+        
+        [service addHandlerWithHTTPMethod:@"PUT" path:@"/put" block:
+         ^(RadHTTPRequest *request) {
+            
+            NSLog(@"PUT %d bytes", (int) [request.body length]);
+             //NSString *string = [[NSString alloc] initWithData:request.body encoding:NSUTF8StringEncoding];
+             //NSLog(@"%@", string);
+             //NSLog(@"------");
+             
+             
+            RadHTTPResponse *response = [[RadHTTPResponse alloc] init];
+            response.body = nil;
+            return response;
+            
+        }];
+         
+    
+        
        [service addHandlerWithHTTPMethod:@"HEAD" path:@"/*path:" block:
          ^(RadHTTPRequest *request) {
              RadHTTPResponse *response = [[RadHTTPResponse alloc] init];

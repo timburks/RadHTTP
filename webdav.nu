@@ -55,16 +55,19 @@
                  (if data (then data) (else "")))))
 
 (put "/*path:"
-     (puts "PUTPUTPUTPUTPUT")
-     (puts ((NSString alloc) initWithData:(REQUEST body) encoding:4))
      (set pathToWrite (+ ROOT "/" *path))
      (cond ((not (file-exists (pathToWrite stringByDeletingLastPathComponent)))
             (puts "putting into a nonexistent directory: #{pathToWrite}")
             (RESPONSE setStatus:409)
             "")
-           (else ((REQUEST body) writeToFile:(+ ROOT "/" *path) atomically:NO)
-                 (RESPONSE setStatus:201)
-                 "ok")))
+           (else
+                (set localPath (+ ROOT "/" *path))
+                (set dataToWrite (REQUEST body))
+                (unless dataToWrite (set dataToWrite (NSData new)))
+                (puts "writing #{(dataToWrite length)} bytes to #{localPath}")
+                (dataToWrite writeToFile:localPath atomically:NO)
+                (RESPONSE setStatus:201)
+                "ok")))
 
 (delete "/*path:"
         (puts "DELETE #{*path}")
@@ -80,15 +83,13 @@
                        (else
                             (puts "deleting #{pathToDelete}")
                             (system "rm -rf #{pathToDelete}")
-                            ;; delete properties for this path
-                            (set mongo (RadMongoDB new))
-                            (mongo removeWithCondition:(dict path:pathToDelete) fromCollection:"webdav.properties")
+                            (delete-properties pathToDelete)
                             "ok")))))
 
 (options "/*path:"
          (RESPONSE setValue:"OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, COPY, MOVE, MKCOL, PROPFIND, PROPPATCH, LOCK, UNLOCK, ORDERPATCH"
               forHTTPHeader:"Allow")
-         (RESPONSE setValue:"1, 2, ordered-collections"
+         (RESPONSE setValue:"1, 2"
               forHTTPHeader:"DAV")
          "")
 
@@ -101,6 +102,59 @@
 
 (def CDATA (value)
      (+ "<![CDATA[" value "]]>"))
+
+(def get-propstats (command path)
+     (set localname (+ ROOT "/" path))
+     (set attributes ((NSFileManager defaultManager)
+                      attributesOfItemAtPath:localname error:nil))
+     (puts "ATTRIBUTES")
+     (puts (attributes description))
+     (set propstats "")
+     ((command children) each:
+      (do (prop)
+          (puts "PROP")
+          (puts (prop name))
+          (if (eq (prop universalName) "{DAV:}prop")
+              ((prop children) each:
+               (do (keyNode)
+                   (puts "REQUESTING KEY")
+                   (set key (keyNode universalName))
+                   (puts key)
+                   (cond ((eq key "{DAV:}resourcetype")
+                          (propstats appendString:
+                                     (&D=propstat (&D=prop (&D=resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
+                                                                                (then (&D=collection))
+                                                                                (else nil))))
+                                                  (&D=status "HTTP/1.1 200 OK"))))
+                         ((eq key "{DAV:}getcontentlength")
+                          (propstats appendString:
+                                     (&D=propstat (&D=prop (&D=getcontentlength (attributes NSFileSize:)))
+                                                  (&D=status "HTTP/1.1 200 OK"))))
+                         ((eq key "{DAV:}getlastmodified")
+                          (propstats appendString:
+                                     (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT"))
+                                                  (&D=status "HTTP/1.1 200 OK"))))
+                         ((eq key "{DAV:}displayname")
+                          (propstats appendString:
+                                     (&D=propstat (&D=prop (&D=displayname *path))
+                                                  (&D=status "HTTP/1.1 200 OK"))))
+                         (else
+                              (set pathkey (+ *path " " key))
+                              (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
+                              (if property
+                                  (then
+                                       (puts (property description))
+                                       (set value (property value:))
+                                       (puts value)
+                                       (propstats appendString:
+                                                  (&D=propstat (&D=prop (&MARKUP (property keyLocalName:)
+                                                                                 xmlns:(property keyNamespaceURI:) value))
+                                                               (&D=status "HTTP/1.1 200 OK"))))
+                                  (else
+                                       (propstats appendString:
+                                                  (&D=propstat (&D=prop (&MARKUP (keyNode localName) xmlns:(keyNode namespaceURI)))
+                                                               (&D=status "HTTP/1.1 404 Not Found"))))))))))))
+     propstats)
 
 (propfind "/*path:"
           (puts "PROPFIND '#{*path}'")
@@ -115,6 +169,9 @@
               (RESPONSE setStatus:404)
               (return "NOT FOUND"))
           
+          (set depth ((REQUEST headers) Depth:))
+          (puts "DEPTH: #{depth}")
+          
           (set props nil)
           (if (REQUEST body)
               (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
@@ -128,61 +185,46 @@
               (if (eq (command universalName) "{DAV:}propfind")
                   (set mongo (RadMongoDB new))
                   (mongo connect)
-                  (set propstats "")
-                  ((command children) each:
-                   (do (prop)
-                       (puts "PROP")
-                       (puts (prop name))
-                       (if (eq (prop universalName) "{DAV:}prop")
-                           ((prop children) each:
-                            (do (keyNode)
-                                (puts "REQUESTING KEY")
-                                (set key (keyNode universalName))
-                                (puts key)
-                                
-                                (cond ((eq key "{DAV:}resourcetype")
-                                       (propstats appendString:
-                                                  (&D=propstat (&D=prop (&D=resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
-                                                                                             (then (&D=collection))
-                                                                                             (else nil))))
-                                                               (&D=status "HTTP/1.1 200 OK"))))
-                                      ((eq key "{DAV:}getcontentlength")
-                                       (propstats appendString:
-                                                  (&D=propstat (&D=prop (&D=getcontentlength (attributes NSFileSize:)))
-                                                               (&D=status "HTTP/1.1 200 OK"))))
-                                      ((eq key "{DAV:}getlastmodified")
-                                       (propstats appendString:
-                                                  (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT"))
-                                                               (&D=status "HTTP/1.1 200 OK"))))
-                                      ((eq key "{DAV:}displayname")
-                                       (propstats appendString:
-                                                  (&D=propstat (&D=prop (&D=displayname *path))
-                                                               (&D=status "HTTP/1.1 200 OK"))))
-                                      (else
-                                           (set pathkey (+ *path " " key))
-                                           (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
-                                           (if property
-                                               (then
-                                                    (puts (property description))
-                                                    (set value (property value:))
-                                                    (puts value)
-                                                    (propstats appendString:
-                                                               (&D=propstat (&D=prop (&MARKUP (property keyLocalName:)
-                                                                                              xmlns:(property keyNamespaceURI:) value))
-                                                                            (&D=status "HTTP/1.1 200 OK"))))
-                                               (else
-                                                    (propstats appendString:
-                                                               (&D=propstat (&D=prop (&MARKUP (keyNode localName) xmlns:(keyNode namespaceURI)))
-                                                                            (&D=status "HTTP/1.1 404 Not Found"))))
-                                               ))))))))
+                  (set propstats (get-propstats command *path))
                   (puts propstats)))
+          
           (if (and propstats (propstats length))
               (then
                    (RESPONSE setStatus:207)
+                   (set responses "")
+                   (responses appendString:(&D=response (&D=href (+ SERVER  "/" *path)) propstats))
+                   (if (eq depth "1")
+                       (set files ((NSFileManager defaultManager)
+                                   contentsOfDirectoryAtPath:(+ ROOT "/" *path) error:nil))
+                       (puts "FILES FOR LISTING")
+                       (puts (files description))
+                       (set pathForHREF *path)
+                       (if (pathForHREF length) (set pathForHREF (+ pathForHREF "/")))
+                       (files each:
+                              (do (filename)
+                                  (set resourcename (+ SERVER "/" pathForHREF filename))
+                                  (set localname (+ ROOT "/" *path "/" filename))
+                                  (set exists ((NSFileManager defaultManager)
+                                               fileExistsAtPath:localname
+                                               isDirectory:(set isDirectory (NuPointer new))))
+                                  (set attributes ((NSFileManager defaultManager)
+                                                   attributesOfItemAtPath:localname error:nil))
+                                  (NSLog "FILE ATTRIBUTES")
+                                  (NSLog (attributes description))
+                                  (NSLog "is directory: #{(isDirectory value)}")
+                                  (responses appendString:(+ (&D=response (&D=href resourcename)
+                                                                          (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                                                (&D=getcontentlength (attributes NSFileSize:))
+                                                                                                (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                                                (&D=resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
+                                                                                                                     (then (&D=collection)))))
+                                                                                       (&D=status "HTTP/1.1 200 OK")))
+                                                             "\n"))
+                                  )))
+                   
                    (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
-                                  (&D=multistatus xmlns:D:"DAV:"
-                                                  (&D=response (&D=href (+ SERVER  "/" *path))
-                                                               propstats))))
+                                  (&D=multistatus xmlns:D:"DAV:" responses)))
+                   
                    (puts "RETURNING")
                    (puts result)
                    result)
@@ -226,15 +268,7 @@
                                                                                                    (&D=getcontentlength (attributes NSFileSize:))
                                                                                                    (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
                                                                                                    (&D=resourcetype (if (isDirectory value)
-                                                                                                                        (then (&D=collection))))
-                                                                                                   ;(&D=displayname (CDATA filename))
-                                                                                                   ;(&D=getcontenttype "text/plain")
-                                                                                                   ;(&D=getetag "zzyzx")
-                                                                                                   ;(&D=supportedlock (&D=lockentry (&D=lockscope (&D=exclusive))
-                                                                                                   ;                                (&D=locktype (&D=write)))
-                                                                                                   ;                  (&D=lockentry (&D=lockscope (&D=shared))
-                                                                                                   ;                                (&D=locktype (&D=write))))
-                                                                                                   )
+                                                                                                                        (then (&D=collection)))))
                                                                                           (&D=status "HTTP/1.1 200 OK")))
                                                                 "\n"))))))
                    (puts "RETURNING")
@@ -312,6 +346,36 @@
                    (RESPONSE setStatus:201)
                    "ok")))
 
+;; transfer properties from source path to destination path
+(def copy-properties (source destination)
+     (set mongo (RadMongoDB new))
+     (mongo connect)
+     (set properties (mongo findArray:(dict path:source) inCollection:"webdav.properties"))
+     (puts "properties to move")
+     (puts (properties description))
+     (properties each:
+                 (do (property)
+                     (property path:destination
+                            pathkey:(+ destination " " (property key:)))
+                     (property removeObjectForKey:"_id")
+                     (puts "UPDATING")
+                     (puts (property description))
+                     (mongo updateObject:property
+                            inCollection:"webdav.properties"
+                           withCondition:(dict pathkey:(property pathkey:))
+                       insertIfNecessary:YES
+                   updateMultipleEntries:NO)
+                     (puts "MOVED PROPERTY - CHECK THE RESULTS")
+                     (set check (mongo findArray:(dict pathkey:(property pathkey:)) inCollection:"webdav.properties"))
+                     (puts (check description)))))
+
+;; remove properties for a given path
+(def delete-properties (path)
+     (set properties (mongo findArray:(dict path:path) inCollection:"webdav.properties"))
+     (properties each:
+                 (do (property)
+                     (mongo removeWithCondition:(dict _id:(property _id:)) fromCollection:"webdav.properties"))))
+
 (copy "/*path:"
       (puts "copy #{*path}")
       (set pathToCopyFrom (+ ROOT "/" *path))
@@ -364,38 +428,20 @@
              "")
             (else
                  (system "mv #{pathToMoveFrom} #{pathToMoveTo}")
-                 ;; transfer properties from source path to destination path
-                 (set mongo (RadMongoDB new))
-                 (mongo connect)
-                 (set properties (mongo findArray:(dict path:*path) inCollection:"webdav.properties"))
-                 (puts "properties to move")
-                 (puts (properties description))
-                 (properties each:
-                             (do (property)
-                                 (property path:destination
-                                        pathkey:(+ destination " " (property key:)))
-                                 (property removeObjectForKey:"_id")
-                                 (puts "UPDATING")
-                                 (puts (property description))
-                                 (mongo updateObject:property
-                                        inCollection:"webdav.properties"
-                                       withCondition:(dict pathkey:(property pathkey:))
-                                   insertIfNecessary:YES
-                               updateMultipleEntries:NO)
-                                 (puts "MOVED PROPERTY - CHECK THE RESULTS")
-                                 (set check (mongo findArray:(dict pathkey:(property pathkey:)) inCollection:"webdav.properties"))
-                                 (puts (check description))
-                                 
-                                 
-                                 ))
-                 ;; remove the source properties
-                 (set properties (mongo findArray:(dict path:*path) inCollection:"webdav.properties"))
-                 (properties each:
-                             (do (property)
-                                 (mongo removeWithCondition:(dict _id:(property _id:)) fromCollection:"webdav.properties")))
+                 (copy-properties *path destination)
+                 (delete-properties *path)
                  (if destinationExists
                      (then (RESPONSE setStatus:204))
                      (else (RESPONSE setStatus:201)))
                  "")))
+
+(lock "/*path:"
+      (RESPONSE setStatus:204)
+      "")
+
+(unlock "/*path:"
+        (RESPONSE setStatus:204)
+        "")
+
 
 (RadLibEVHTPServer run)

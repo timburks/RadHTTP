@@ -78,7 +78,7 @@ static NSString *scheme_for_uri(const evhtp_uri_t *uri)
             return @"nfs";
         case htp_scheme_unknown:
         default:
-            return @"unknown";
+            return @"http";
     }
 }
 

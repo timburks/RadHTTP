@@ -12,15 +12,20 @@
 (load "RadMongoDB")
 
 (if NO
-(puts "STARTUP: REMOVE ALL PROPERTIES")
-(set mongo (RadMongoDB new))
-(mongo connect)
-(mongo removeWithCondition:(dict) fromCollection:"webdav.properties")
-(set $all (mongo findArray:nil inCollection:"webdav.properties"))
-(puts ($all description)))
+    (puts "STARTUP: REMOVE ALL PROPERTIES")
+    (set mongo (RadMongoDB new))
+    (mongo connect)
+    (mongo removeWithCondition:(dict) fromCollection:"webdav.properties")
+    (set $all (mongo findArray:nil inCollection:"webdav.properties"))
+    (puts ($all description)))
 
 (set ROOT "files")
 (set SERVER "http://localhost:8080")
+;(set SERVER "http://webdav.agent.io")
+;(set SERVER "http://webdav.agent.io:8080")
+
+(def server (request)
+     (+ (request scheme) "://" (request hostWithPort)))
 
 (get "/owncloud/remote.php/webdav"
      (puts ((REQUEST headers) description))
@@ -47,13 +52,23 @@
 (get "/*path:"
      (puts "GET")
      (puts (REQUEST path))
+     (puts "server #{(server REQUEST)}")
      (set pathToGet (+ ROOT "/" *path))
      (puts pathToGet)
-     (cond ((not (file-exists pathToGet))
+     (set attributes ((NSFileManager defaultManager)
+                      attributesOfItemAtPath:pathToGet error:nil))
+     (cond ((not attributes)
             (RESPONSE setStatus:404)
             "Not found")
+           ((eq (attributes NSFileType:) "NSFileTypeDirectory")
+            (set files ((NSFileManager defaultManager)
+                        contentsOfDirectoryAtPath:(+ ROOT "/" *path) error:nil))
+            (&html (&body (&ul
+                              (files map:(do (file) (&li file)))))))
            (else (set data (NSData dataWithContentsOfFile:(+ ROOT "/" *path)))
-                 (if data (then data) (else "")))))
+                 (if data
+                     (then data)
+                     (else "")))))
 
 (put "/*path:"
      (set pathToWrite (+ ROOT "/" *path))
@@ -94,8 +109,8 @@
               forHTTPHeader:"DAV")
          "")
 
-(send &D=resourcetype setEmpty:YES)
-(send &D=collection setEmpty:YES)
+(send &D:resourcetype setEmpty:YES)
+(send &D:collection setEmpty:YES)
 
 (macro &MARKUP (tag *stuff)
        `(progn (set operator (NuMarkupOperator operatorWithTag:,tag))
@@ -123,24 +138,26 @@
                    (puts key)
                    (cond ((eq key "{DAV:}resourcetype")
                           (propstats appendString:
-                                     (&D=propstat (&D=prop (&D=resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
-                                                                                (then (&D=collection))
+                                     (&D:propstat (&D:prop (&D:resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
+                                                                                (then (&D:collection))
                                                                                 (else nil))))
-                                                  (&D=status "HTTP/1.1 200 OK"))))
+                                      (&D:status "HTTP/1.1 200 OK"))))
                          ((eq key "{DAV:}getcontentlength")
                           (propstats appendString:
-                                     (&D=propstat (&D=prop (&D=getcontentlength (attributes NSFileSize:)))
-                                                  (&D=status "HTTP/1.1 200 OK"))))
+                                     (&D:propstat (&D:prop (&D:getcontentlength (attributes NSFileSize:)))
+                                      (&D:status "HTTP/1.1 200 OK"))))
                          ((eq key "{DAV:}getlastmodified")
                           (propstats appendString:
-                                     (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT"))
-                                                  (&D=status "HTTP/1.1 200 OK"))))
+                                     (&D:propstat (&D:prop (&D:getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT"))
+                                      (&D:status "HTTP/1.1 200 OK"))))
                          ((eq key "{DAV:}displayname")
                           (propstats appendString:
-                                     (&D=propstat (&D=prop (&D=displayname *path))
-                                                  (&D=status "HTTP/1.1 200 OK"))))
+                                     (&D:propstat (&D:prop (&D:displayname *path))
+                                      (&D:status "HTTP/1.1 200 OK"))))
                          (else
                               (set pathkey (+ *path " " key))
+                              (set mongo (RadMongoDB new))
+                              (mongo connect)
                               (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
                               (if property
                                   (then
@@ -148,13 +165,13 @@
                                        (set value (property value:))
                                        (puts value)
                                        (propstats appendString:
-                                                  (&D=propstat (&D=prop (&MARKUP (property keyLocalName:)
+                                                  (&D:propstat (&D:prop (&MARKUP (property keyLocalName:)
                                                                                  xmlns:(property keyNamespaceURI:) value))
-                                                               (&D=status "HTTP/1.1 200 OK"))))
+                                                   (&D:status "HTTP/1.1 200 OK"))))
                                   (else
                                        (propstats appendString:
-                                                  (&D=propstat (&D=prop (&MARKUP (keyNode localName) xmlns:(keyNode namespaceURI)))
-                                                               (&D=status "HTTP/1.1 404 Not Found"))))))))))))
+                                                  (&D:propstat (&D:prop (&MARKUP (keyNode localName) xmlns:(keyNode namespaceURI)))
+                                                   (&D:status "HTTP/1.1 404 Not Found"))))))))))))
      propstats)
 
 (propfind "/*path:"
@@ -174,6 +191,7 @@
           (puts "DEPTH: #{depth}")
           
           (set props nil)
+          (set propstats nil)
           (if (REQUEST body)
               (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
               (puts string)
@@ -193,7 +211,7 @@
               (then
                    (RESPONSE setStatus:207)
                    (set responses "")
-                   (responses appendString:(&D=response (&D=href (+ SERVER  "/" *path)) propstats))
+                   (responses appendString:(&D:response (&D:href (+ SERVER  "/" *path)) propstats))
                    (if (eq depth "1")
                        (set files ((NSFileManager defaultManager)
                                    contentsOfDirectoryAtPath:(+ ROOT "/" *path) error:nil))
@@ -213,18 +231,18 @@
                                   (NSLog "FILE ATTRIBUTES")
                                   (NSLog (attributes description))
                                   (NSLog "is directory: #{(isDirectory value)}")
-                                  (responses appendString:(+ (&D=response (&D=href resourcename)
-                                                                          (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                                (&D=getcontentlength (attributes NSFileSize:))
-                                                                                                (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                                (&D=resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
-                                                                                                                     (then (&D=collection)))))
-                                                                                       (&D=status "HTTP/1.1 200 OK")))
+                                  (responses appendString:(+ (&D:response (&D:href resourcename)
+                                                              (&D:propstat (&D:prop (&D:getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                            (&D:getcontentlength (attributes NSFileSize:))
+                                                                            (&D:creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                            (&D:resourcetype (if (eq (attributes NSFileType:) "NSFileTypeDirectory")
+                                                                                                 (then (&D:collection)))))
+                                                               (&D:status "HTTP/1.1 200 OK")))
                                                              "\n"))
                                   )))
                    
                    (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
-                                  (&D=multistatus xmlns:D:"DAV:" responses)))
+                                  (&D:multistatus xmlns:D:"DAV:" responses)))
                    
                    (puts "RETURNING")
                    (puts result)
@@ -243,35 +261,35 @@
                    
                    (RESPONSE setStatus:207)
                    (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
-                                  (&D=multistatus xmlns:D:"DAV:"
-                                                  (&D=response (&D=href (+ SERVER "/" pathForHREF))
-                                                               (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                     ;(&D=getcontentlength (attributes NSFileSize:))
-                                                                                     (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                     ;(&D=displayname (CDATA "."))
-                                                                                     (&D=resourcetype (&D=collection)))
-                                                                            (&D=status "HTTP/1.1 200 OK")))
-                                                  "\n"
-                                                  (files map:
-                                                         (do (filename)
-                                                             (set resourcename (+ SERVER "/" pathForHREF filename))
-                                                             (set localname (+ ROOT "/" *path "/" filename))
-                                                             (set exists ((NSFileManager defaultManager)
-                                                                          fileExistsAtPath:localname
-                                                                          isDirectory:(set isDirectory (NuPointer new))))
-                                                             (set attributes ((NSFileManager defaultManager)
-                                                                              attributesOfItemAtPath:localname error:nil))
-                                                             (NSLog "FILE ATTRIBUTES")
-                                                             (NSLog (attributes description))
-                                                             (NSLog "is directory: #{(isDirectory value)}")
-                                                             (+ (&D=response (&D=href resourcename)
-                                                                             (&D=propstat (&D=prop (&D=getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                                   (&D=getcontentlength (attributes NSFileSize:))
-                                                                                                   (&D=creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
-                                                                                                   (&D=resourcetype (if (isDirectory value)
-                                                                                                                        (then (&D=collection)))))
-                                                                                          (&D=status "HTTP/1.1 200 OK")))
-                                                                "\n"))))))
+                                  (&D:multistatus xmlns:D:"DAV:"
+                                   (&D:response (&D:href (+ SERVER "/" pathForHREF))
+                                    (&D:propstat (&D:prop (&D:getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                  ;(&D:getcontentlength (attributes NSFileSize:))
+                                                  (&D:creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                  ;(&D:displayname (CDATA "."))
+                                                  (&D:resourcetype (&D:collection)))
+                                     (&D:status "HTTP/1.1 200 OK")))
+                                   "\n"
+                                   (files map:
+                                          (do (filename)
+                                              (set resourcename (+ SERVER "/" pathForHREF filename))
+                                              (set localname (+ ROOT "/" *path "/" filename))
+                                              (set exists ((NSFileManager defaultManager)
+                                                           fileExistsAtPath:localname
+                                                           isDirectory:(set isDirectory (NuPointer new))))
+                                              (set attributes ((NSFileManager defaultManager)
+                                                               attributesOfItemAtPath:localname error:nil))
+                                              (NSLog "FILE ATTRIBUTES")
+                                              (NSLog (attributes description))
+                                              (NSLog "is directory: #{(isDirectory value)}")
+                                              (+ (&D:response (&D:href resourcename)
+                                                  (&D:propstat (&D:prop (&D:getlastmodified "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                (&D:getcontentlength (attributes NSFileSize:))
+                                                                (&D:creationdate "Sat, 15 Mar 2014 21:03:36 GMT")
+                                                                (&D:resourcetype (if (isDirectory value)
+                                                                                     (then (&D:collection)))))
+                                                   (&D:status "HTTP/1.1 200 OK")))
+                                                 "\n"))))))
                    (puts "RETURNING")
                    (puts result)
                    result)))
@@ -279,12 +297,12 @@
 
 (proppatch "/*path:"
            (puts "PROPPATCH")
+           (set mongo (RadMongoDB new))
+           (mongo connect)
            (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
            (set reader ((RadXMLReader alloc) init))
            (set command (reader readXMLFromString:string error:nil))
            (if (eq (command universalName) "{DAV:}propertyupdate")
-               (set mongo (RadMongoDB new))
-               (mongo connect)
                ((command children) each:
                 (do (element)
                     (cond ((eq (element universalName) "{DAV:}set")
@@ -372,6 +390,8 @@
 
 ;; remove properties for a given path
 (def delete-properties (path)
+     (set mongo (RadMongoDB new))
+     (mongo connect)
      (set properties (mongo findArray:(dict path:path) inCollection:"webdav.properties"))
      (properties each:
                  (do (property)

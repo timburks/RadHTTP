@@ -19,12 +19,14 @@
 @property (nonatomic, strong) NSDictionary *headers;
 @property (nonatomic, strong) NSData *body;
 @property (nonatomic, strong) NSMutableDictionary *bindings;
+@property (nonatomic, strong) NSString *scheme;
 
 - (NSString *) path;
 - (NSString *) fragment;
 - (NSString *) query;
 - (NSDictionary *) cookies;
 - (NSDictionary *) post;
+- (NSString *) hostWithPort;
 
 @property (nonatomic, weak) id<RadHTTPResponder> connection;
 @property (nonatomic, weak) RadHTTPServer *server;

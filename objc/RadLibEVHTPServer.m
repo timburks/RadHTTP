@@ -133,6 +133,7 @@ static void rad_request_handler(evhtp_request_t *req, void *server_context)
     request.body = rad_request_body_helper(req);
     request.context = req;
     request.server = server;
+    request.scheme = scheme;
     return [server processRequest:request];
 }
 

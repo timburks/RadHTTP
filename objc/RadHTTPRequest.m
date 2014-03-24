@@ -14,6 +14,7 @@
 
 - (id) init {
     if ((self = [super init])) {
+        self.scheme = @"http"; // default
         self.bindings = [NSMutableDictionary dictionary];
     }
     return self;
@@ -32,6 +33,17 @@
 - (NSString *) fragment
 {
     return [self.URL fragment];
+}
+
+- (NSString *) hostWithPort
+{
+    NSString *host = [self.URL host];
+    int port = [[self.URL port] intValue];
+    if (port == 80) {
+        return host;
+    } else {
+        return [NSString stringWithFormat:@"%@:%d", host, port];
+    }
 }
 
 - (NSDictionary *) cookies

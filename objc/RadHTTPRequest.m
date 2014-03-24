@@ -10,7 +10,7 @@
 #import <Nu/Nu.h>
 
 @implementation RadHTTPRequest
-@synthesize URL, headers, body, context, method, connection, bindings, server;
+@synthesize URL, headers, body, context, method, connection, bindings, server, scheme;
 
 - (id) init {
     if ((self = [super init])) {

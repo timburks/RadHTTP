@@ -349,7 +349,7 @@ static const char *const hexEncodingTable = "0123456789abcdef";
 
 @implementation NSDate (RadHTTPHelpers)
 // Get an RFC822-compliant representation of a date.
-- (NSString *) rfc822
+- (NSString *) rfc822String
 {
     NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
     NSLocale *enUS = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
@@ -362,78 +362,19 @@ static const char *const hexEncodingTable = "0123456789abcdef";
 }
 
 // Get an RFC1123-compliant representation of a date.
-- (NSString *) rfc1123
+- (NSString *) rfc1123String
 {
     NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-    [dateFormatter setDateFormat:@"EEE',' dd MMM yyyy HH':'mm':'ss 'GMT'"];
+    dateFormatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+    dateFormatter.timeZone = [NSTimeZone timeZoneWithAbbreviation:@"GMT"];
+    [dateFormatter setDateFormat:@"EEE',' dd MMM yyyy HH':'mm':'ss z"];
     NSMutableString *result = [[NSMutableString alloc] init];
     [result appendString:[dateFormatter stringFromDate:self]];
     return result;
 }
 
-+ (NSDate *) dateFromRFC1123String:(NSString *) dateString
-{
-    if (dateString == nil)
-        return nil;
-    
-    const char *str = [dateString UTF8String];
-    const char *fmt;
-    NSDate *retDate;
-    char *ret;
-    
-    fmt = "%a, %d %b %Y %H:%M:%S %Z";
-    struct tm rfc1123timeinfo;
-    memset(&rfc1123timeinfo, 0, sizeof(rfc1123timeinfo));
-    ret = strptime_l(str, fmt, &rfc1123timeinfo, NULL);
-    if (ret) {
-        time_t rfc1123time = mktime(&rfc1123timeinfo);
-        retDate = [NSDate dateWithTimeIntervalSince1970:rfc1123time];
-        if (retDate != nil)
-            return retDate;
-    }
-    
-    
-    fmt = "%A, %d-%b-%y %H:%M:%S %Z";
-    struct tm rfc850timeinfo;
-    memset(&rfc850timeinfo, 0, sizeof(rfc850timeinfo));
-    ret = strptime_l(str, fmt, &rfc850timeinfo, NULL);
-    if (ret) {
-        time_t rfc850time = mktime(&rfc850timeinfo);
-        retDate = [NSDate dateWithTimeIntervalSince1970:rfc850time];
-        if (retDate != nil)
-            return retDate;
-    }
-    
-    fmt = "%a %b %e %H:%M:%S %Y";
-    struct tm asctimeinfo;
-    memset(&asctimeinfo, 0, sizeof(asctimeinfo));
-    ret = strptime_l(str, fmt, &asctimeinfo, NULL);
-    if (ret) {
-        time_t asctime = mktime(&asctimeinfo);
-        return [NSDate dateWithTimeIntervalSince1970:asctime];
-    }
-    
-    return nil;
-}
-
-
-// Get an RFC1123-compliant representation of a date.
-- (NSString *) rfc1123String
-{
-    time_t date = (time_t) [self timeIntervalSince1970];
-    struct tm timeinfo;
-    gmtime_r(&date, &timeinfo);
-    char buffer[32];
-    size_t ret = strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", &timeinfo);
-    if (ret) {
-        return @(buffer);
-    } else {
-        return nil;
-    }
-}
-
 // Get an RFC3339-compliant representation of a date.
-- (NSString *) rfc3339
+- (NSString *) rfc3339String
 {
     NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
     [dateFormatter setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"]];

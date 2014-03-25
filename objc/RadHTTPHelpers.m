@@ -424,7 +424,7 @@ static const char *const hexEncodingTable = "0123456789abcdef";
     struct tm timeinfo;
     gmtime_r(&date, &timeinfo);
     char buffer[32];
-    size_t ret = strftime_l(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", &timeinfo, NULL);
+    size_t ret = strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", &timeinfo);
     if (ret) {
         return @(buffer);
     } else {

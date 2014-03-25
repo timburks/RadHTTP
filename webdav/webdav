@@ -22,8 +22,8 @@
     (puts ($all description)))
 
 (set ROOT "files")
-(set SERVER "http://localhost:8080")
-(set SERVER "http://webdav.agent.io")
+;(set SERVER "http://localhost:8080")
+;(set SERVER "http://webdav.agent.io")
 ;(set SERVER "http://webdav.agent.io:8080")
 
 (def server (request)
@@ -277,7 +277,7 @@
               
               (RESPONSE setStatus:207)
               (set responses "")
-              (responses appendString:(&D:response (&D:href (+ SERVER  "/" *path)) propstats))
+              (responses appendString:(&D:response (&D:href (+ (server REQUEST)  "/" *path)) propstats))
               (if (eq depth "1")
                   (set files ((NSFileManager defaultManager)
                               contentsOfDirectoryAtPath:(+ ROOT "/" *path) error:nil))
@@ -287,7 +287,7 @@
                   (if (pathForHREF length) (set pathForHREF (+ pathForHREF "/")))
                   (files each:
                          (do (filename)
-                             (set resourcename (+ SERVER "/" pathForHREF filename))
+                             (set resourcename (+ (server REQUEST) "/" pathForHREF filename))
                              (set localname (+ ROOT "/" *path "/" filename))
                              (set exists ((NSFileManager defaultManager)
                                           fileExistsAtPath:localname
@@ -419,7 +419,7 @@
       
       (set overwrite ((REQUEST headers) Overwrite:))
       
-      (set pathToCopyTo (+ ROOT (destination stringByReplacingOccurrencesOfString:SERVER withString:"")))
+      (set pathToCopyTo (+ ROOT (destination stringByReplacingOccurrencesOfString:(server REQUEST) withString:"")))
       (puts "copying #{pathToCopyFrom} to #{pathToCopyTo}")
       
       (set destinationExists (file-exists pathToCopyTo))
@@ -444,7 +444,7 @@
       
       (set destination ((REQUEST headers) Destination:))
       (puts "DESTINATION: #{destination}")
-      (set destination (destination stringByReplacingOccurrencesOfString:(+ SERVER "/") withString:""))
+      (set destination (destination stringByReplacingOccurrencesOfString:(+ (server REQUEST) "/") withString:""))
       
       (set overwrite ((REQUEST headers) Overwrite:))
       

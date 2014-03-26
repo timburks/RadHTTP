@@ -21,13 +21,15 @@
     (set $all (mongo findArray:nil inCollection:"webdav.properties"))
     (puts ($all description)))
 
-(set ROOT "files")
+(set ROOT "/var/webdav")
 ;(set SERVER "http://localhost:8080")
-;(set SERVER "http://webdav.agent.io")
+(set SERVER "http://webdav.agent.io")
 ;(set SERVER "http://webdav.agent.io:8080")
 
 (def server (request)
      (+ (request scheme) "://" (request hostWithPort)))
+
+(def server (request) SERVER)
 
 (get "/owncloud/remote.php/webdav"
      (puts ((REQUEST headers) description))
@@ -376,7 +378,7 @@
              (else (puts "creating #{pathToCreate}")
                    (system "mkdir -p #{pathToCreate}")
                    (RESPONSE setStatus:201)
-                   "ok")))
+                   pathToCreate)))
 
 ;; transfer properties from source path to destination path
 (def copy-properties (source destination)
@@ -428,9 +430,9 @@
              (RESPONSE setStatus:412)
              "")
             ((not (file-exists (pathToCopyTo stringByDeletingLastPathComponent)))
-             (puts "no destination directory: #{(pathToCopyTo stringByDeletingLastPathComponent)}")
+             (set message "no destination directory: #{(pathToCopyTo stringByDeletingLastPathComponent)}")
              (RESPONSE setStatus:409)
-             "")
+             message)
             (else
                  (system "cp -r #{pathToCopyFrom} #{pathToCopyTo}")
                  (if destinationExists
@@ -477,5 +479,9 @@
         (RESPONSE setStatus:204)
         "")
 
+;(RadLibEVHTPServer run)
 
-(RadLibEVHTPServer run)
+(set s ((RadLibEVHTPServer alloc) initWithService:(RadHTTPService sharedService)))
+(s setVerbose:YES)
+(s run)
+

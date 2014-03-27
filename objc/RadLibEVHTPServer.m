@@ -269,7 +269,7 @@ static void rad_response_helper(evhtp_request_t *req, RadHTTPResponse *response)
         
         evhtp_request_t *req = (evhtp_request_t *) request.context;
         if (self.verbose) {
-            NSLog(@"RESPONSE %d %@", response.status, [rad_response_headers_helper(req) description]);
+            NSLog(@"RESPONSE %d %@", response.status, [response.headers description]);
         }
         rad_response_helper(req, response);
         if (response.exit) {

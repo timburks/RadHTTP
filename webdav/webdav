@@ -21,15 +21,18 @@
     (set $all (mongo findArray:nil inCollection:"webdav.properties"))
     (puts ($all description)))
 
+(def encode (path) ((path stringByReplacingOccurrencesOfString:" " withString:"%20")
+                    stringByReplacingOccurrencesOfString:"'" withString:"%27"))
+(def decode (path) ((path stringByReplacingOccurrencesOfString:"%20" withString:" ")
+                    stringByReplacingOccurrencesOfString:"%27" withString:"'"))
+
 (set ROOT "/var/webdav")
-;(set SERVER "http://localhost:8080")
-(set SERVER "http://webdav.agent.io")
-;(set SERVER "http://webdav.agent.io:8080")
 
 (def server (request)
-     (+ (request scheme) "://" (request hostWithPort)))
+     (+ (request scheme) "://" ((request headers) Host:)))
 
-(def server (request) SERVER)
+(get "/server"
+     (+ "http://" ((REQUEST headers) Host:)))
 
 (get "/owncloud/remote.php/webdav"
      (puts ((REQUEST headers) description))
@@ -102,7 +105,7 @@
                              "deleting path with nonempty fragment")
                        (else
                             (puts "deleting #{pathToDelete}")
-                            (system "rm -rf #{pathToDelete}")
+                            ((NSFileManager defaultManager) removeItemAtPath:pathToDelete error:0)
                             (delete-properties pathToDelete)
                             "ok")))))
 
@@ -206,7 +209,6 @@
                         ((prop children) each:
                          (do (keyNode)
                              (set key (keyNode universalName))
-                             (puts "SEARCHING FOR KEY #{key}")
                              (if (set getter (getter-with-key key))
                                  (then
                                       (getter localName:(keyNode localName))
@@ -218,9 +220,9 @@
                                                 namespaceURI:(keyNode namespaceURI)
                                                        block:(do (path attributes)
                                                                  (set pathkey (+ path " " key))
-                                                                 (puts "running GETTER for #{pathkey}")
+                                                                 ;(puts "running GETTER for #{pathkey}")
                                                                  (set property (mongo findOne:(dict pathkey:pathkey) inCollection:"webdav.properties"))
-                                                                 (puts (property description))
+                                                                 ;(puts (property description))
                                                                  (if property
                                                                      (then (set value (property value:))
                                                                            (&MARKUP (property keyLocalName:)
@@ -230,8 +232,8 @@
                                       ))))))))
          (else (set chosen-getters getters)))
      
-     (puts "GETTERS")
-     (puts (chosen-getters description))
+     ;(puts "GETTERS")
+     ;(puts (chosen-getters description))
      
      (chosen-getters each:
                      (do (getter)
@@ -241,6 +243,8 @@
                              (else (propstats appendString:(&D:propstat (&D:prop (&MARKUP (getter localName:) xmlns:(getter namespaceURI:)))
                                                             (&D:status "HTTP/1.1 404 Not Found")))))))
      propstats)
+
+
 
 (propfind "/*path:"
           (puts "PROPFIND '#{*path}'")
@@ -279,7 +283,8 @@
               
               (RESPONSE setStatus:207)
               (set responses "")
-              (responses appendString:(&D:response (&D:href (+ (server REQUEST)  "/" *path)) propstats))
+              (responses appendString:(&D:response (&D:href (encode (+ (server REQUEST)  "/" *path)))
+                                       propstats))
               (if (eq depth "1")
                   (set files ((NSFileManager defaultManager)
                               contentsOfDirectoryAtPath:(+ ROOT "/" *path) error:nil))
@@ -300,11 +305,11 @@
                              (NSLog (attributes description))
                              (NSLog "is directory: #{(isDirectory value)}")
                              (responses appendString:(+ (&D:response
-                                                         (&D:href resourcename)
+                                                         (&D:href (encode resourcename))
                                                          (get-propstats command (+ *path "/" filename))))))))
               (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                              (&D:multistatus xmlns:D:"DAV:" responses)))
-              
+              (RESPONSE setValue:"text/xml; charset=\"utf-8\"" forHTTPHeader:"Content-Type")
               (puts "RETURNING")
               (puts result)
               result))
@@ -376,7 +381,7 @@
               (RESPONSE setStatus:415)
               "")
              (else (puts "creating #{pathToCreate}")
-                   (system "mkdir -p #{pathToCreate}")
+                   ((NSFileManager defaultManager) createDirectoryAtPath:pathToCreate withIntermediateDirectories:YES attributes:nil error:0)
                    (RESPONSE setStatus:201)
                    pathToCreate)))
 
@@ -416,17 +421,22 @@
       (puts "copy #{*path}")
       (set pathToCopyFrom (+ ROOT "/" *path))
       
-      (set destination ((REQUEST headers) Destination:))
-      (puts "DESTINATION: #{destination}")
-      
       (set overwrite ((REQUEST headers) Overwrite:))
       
-      (set pathToCopyTo (+ ROOT (destination stringByReplacingOccurrencesOfString:(server REQUEST) withString:"")))
-      (puts "copying #{pathToCopyFrom} to #{pathToCopyTo}")
+      (set destination (decode ((REQUEST headers) Destination:)))
+      (puts "DESTINATION: #{destination}")
+      (set destination (destination stringByReplacingOccurrencesOfString:(+ (server REQUEST) "/") withString:""))
+      (if (eq (destination characterAtIndex:(- (destination length) 1)) '/')
+          (set destination (destination substringWithRange:(list 0 (- (destination length) 1)))))
       
+      (set pathToCopyTo (+ ROOT "/" destination))
       (set destinationExists (file-exists pathToCopyTo))
       
+      (puts "copying #{pathToCopyFrom} to #{pathToCopyTo}")
+      (puts "destination exists? #{pathToCopyTo} #{destinationExists}")
+      
       (cond ((and (eq overwrite "F") destinationExists)
+             (puts "WE WILL NOT OVERRIDE #{pathToCopyTo}")
              (RESPONSE setStatus:412)
              "")
             ((not (file-exists (pathToCopyTo stringByDeletingLastPathComponent)))
@@ -434,7 +444,7 @@
              (RESPONSE setStatus:409)
              message)
             (else
-                 (system "cp -r #{pathToCopyFrom} #{pathToCopyTo}")
+                 ((NSFileManager defaultManager) copyItemAtPath:pathToCopyFrom toPath:pathToCopyTo error:nil)
                  (if destinationExists
                      (then (RESPONSE setStatus:204))
                      (else (RESPONSE setStatus:201)))
@@ -444,16 +454,19 @@
       (puts "move #{*path}")
       (set pathToMoveFrom (+ ROOT "/" *path))
       
-      (set destination ((REQUEST headers) Destination:))
-      (puts "DESTINATION: #{destination}")
-      (set destination (destination stringByReplacingOccurrencesOfString:(+ (server REQUEST) "/") withString:""))
-      
       (set overwrite ((REQUEST headers) Overwrite:))
       
-      (set pathToMoveTo (+ ROOT "/" destination))
-      (puts "copying #{pathToMoveFrom} to #{pathToMoveTo}")
+      (set destination (decode ((REQUEST headers) Destination:)))
+      (puts "DESTINATION: #{destination}")
+      (set destination (destination stringByReplacingOccurrencesOfString:(+ (server REQUEST) "/") withString:""))
+      (if (eq (destination characterAtIndex:(- (destination length) 1)) '/')
+          (set destination (destination substringWithRange:(list 0 (- (destination length) 1)))))
       
+      (set pathToMoveTo (+ ROOT "/" destination))
       (set destinationExists (file-exists pathToMoveTo))
+      
+      (puts "moving #{pathToMoveFrom} to #{pathToMoveTo}")
+      (puts "destination exists? #{pathToMoveTo} #{destinationExists}")
       
       (cond ((and (eq overwrite "F") destinationExists)
              (RESPONSE setStatus:412)
@@ -463,20 +476,76 @@
              (RESPONSE setStatus:409)
              "")
             (else
-                 (system "mv #{pathToMoveFrom} #{pathToMoveTo}")
-                 (copy-properties *path destination)
-                 (delete-properties *path)
-                 (if destinationExists
-                     (then (RESPONSE setStatus:204))
-                     (else (RESPONSE setStatus:201)))
-                 "")))
+                 (if ((NSFileManager defaultManager) fileExistsAtPath:pathToMoveTo)
+                     (puts "REMOVE THE FUCKING DESTINATION")
+                     (set ok ((NSFileManager defaultManager) removeItemAtPath:pathToMoveTo error:nil))
+                     (puts "REMOVE WAS OK? #{ok}"))
+                 (if (set ok ((NSFileManager defaultManager) moveItemAtPath:pathToMoveFrom toPath:pathToMoveTo error:(set perror (NuReference new))))
+                     (then (copy-properties *path destination)
+                           (delete-properties *path)
+                           (if destinationExists
+                               (then (RESPONSE setStatus:204))
+                               (else (RESPONSE setStatus:201)))
+                           "")
+                     (else
+                          (puts ((perror value) description))
+                          (RESPONSE setStatus:999)
+                          "")))))
+
+(send &D:write setEmpty:YES)
+(send &D:exclusive setEmpty:YES)
 
 (lock "/*path:"
-      (RESPONSE setStatus:204)
-      "")
+      (unless (REQUEST body)
+              ;; lock refresh              
+              (RESPONSE setStatus:200)
+              (return "unsupported lock refresh"))
+      
+      (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
+      (puts string)
+      (set reader ((RadXMLReader alloc) init))
+      (set command (reader readXMLFromString:string error:nil))
+      (set owner "")
+      (if (eq (command universalName) "{DAV:}lockinfo")
+          ((command children) each:
+           (do (element)
+               (cond ((eq (element universalName) "{DAV:}lockscope")
+                      (puts "lockscope"))
+                     ((eq (element universalName) "{DAV:}locktype")
+                      (puts "locktype"))
+                     ((eq (element universalName) "{DAV:}owner")
+                      (set owner (element stringValue))
+                      (puts "owner")
+                      (puts owner))
+                     ))))
+      ;; pretend valid lock
+      (RESPONSE setStatus:200)
+      (set token "opaquelocktoken:12341234-1234-1234-1234-1234123456")
+      (RESPONSE setValue:"text/xml; charset=\"utf-8\"" forHTTPHeader:"Content-Type")
+      (RESPONSE setValue:token forHTTPHeader:"Lock-Token")
+      (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
+                     (&D:prop xmlns:D:"DAV:"
+                      (&D:lockdiscovery
+                       (&D:activelock
+                        (&D:locktype (&D:write))
+                        (&D:lockscope (&D:exclusive))
+                        (&D:depth 0)
+                        (&D:owner "litmus test suite")
+                        (&D:timeout "Second-3600")
+                        (&D:locktoken
+                         (&D:href token))
+                        (&D:lockroot
+                         (&D:href (+ (server REQUEST) "/" *path)))
+                        )))))
+      (puts result)
+      result)
+
+
 
 (unlock "/*path:"
         (RESPONSE setStatus:204)
+        (set string (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding))
+        (puts string)
         "")
 
 ;(RadLibEVHTPServer run)

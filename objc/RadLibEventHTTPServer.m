@@ -246,7 +246,7 @@ static void rad_response_helper(struct evhttp_request *req, RadHTTPResponse *res
         
         struct evhttp_request *req = (struct evhttp_request *) request.context;
         if (self.verbose) {
-            NSLog(@"RESPONSE %d %@", response.status, [rad_response_headers_helper(req) description]);
+            NSLog(@"RESPONSE %d %@", response.status, [response.headers description]);
         }
         rad_response_helper(req, response);
         if (response.exit) {

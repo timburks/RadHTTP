@@ -1,7 +1,6 @@
 #!/usr/local/bin/nush
 #
-# This is a very rough start at a WebDAV server.
-# Because of limitations in libevent, it currently only works with the Cocoa HTTP server.
+# This is a rough start at a WebDAV server.
 #
 # Developed using the litmus WebDAV test suite: http://www.webdav.org/neon/litmus/
 #
@@ -174,7 +173,12 @@
                                    (&D:quota-available-bytes 9990000)))
                     (dict name:"{DAV:}quota-used-bytes"
                          block:(do (path attributes)
-                                   (&D:quota-used-bytes 9999)))))
+                                   (&D:quota-used-bytes 9999)))
+                    (dict name:"{DAV:}lockdiscovery"
+                         block:(do (path attributes)
+                                   (&D:what)
+                                   ))
+                    ))
 
 (def getter-with-key (key)
      (puts "searching for getter with key #{key}")
@@ -186,7 +190,7 @@
      g)
 
 
-(def get-propstats (command path)
+(def get-propstats (command path properties)
      (set localname (+ ROOT "/" path))
      (set attributes ((NSFileManager defaultManager)
                       attributesOfItemAtPath:localname error:nil))
@@ -250,6 +254,11 @@
           (puts "PROPFIND '#{*path}'")
           (if (REQUEST body) (puts (NSString stringWithData:(REQUEST body) encoding:NSUTF8StringEncoding)))
           
+          
+          (set properties (properties-for-path *path))
+          
+          
+          
           (set localname (+ ROOT "/" *path))
           (set attributes ((NSFileManager defaultManager)
                            attributesOfItemAtPath:localname error:nil))
@@ -278,7 +287,7 @@
                   (eq (command universalName) "{DAV:}propfind"))
               (set mongo (RadMongoDB new))
               (mongo connect)
-              (set propstats (get-propstats command *path))
+              (set propstats (get-propstats command *path properties))
               (puts propstats)
               
               (RESPONSE setStatus:207)
@@ -306,7 +315,7 @@
                              (NSLog "is directory: #{(isDirectory value)}")
                              (responses appendString:(+ (&D:response
                                                          (&D:href (encode resourcename))
-                                                         (get-propstats command (+ *path "/" filename))))))))
+                                                         (get-propstats command (+ *path "/" filename) properties)))))))
               (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                              (&D:multistatus xmlns:D:"DAV:" responses)))
               (RESPONSE setValue:"text/xml; charset=\"utf-8\"" forHTTPHeader:"Content-Type")
@@ -477,7 +486,7 @@
              "")
             (else
                  (if ((NSFileManager defaultManager) fileExistsAtPath:pathToMoveTo)
-                     (puts "REMOVE THE FUCKING DESTINATION")
+                     (puts "REMOVE THE DESTINATION")
                      (set ok ((NSFileManager defaultManager) removeItemAtPath:pathToMoveTo error:nil))
                      (puts "REMOVE WAS OK? #{ok}"))
                  (if (set ok ((NSFileManager defaultManager) moveItemAtPath:pathToMoveFrom toPath:pathToMoveTo error:(set perror (NuReference new))))
@@ -495,9 +504,37 @@
 (send &D:write setEmpty:YES)
 (send &D:exclusive setEmpty:YES)
 
+(def propertyfilename-for-path (path)
+     (+ ROOT "/" (path stringByDeletingLastPathComponent) "/.%%" (path lastPathComponent)))
+
+(def lockdiscovery-for-path (path)
+     (set properties (properties-for-path path))
+     (set lockinfo (properties lock:))
+     (&D:lockdiscovery
+      (&D:activelock
+       (&D:locktype (lockinfo locktype:))
+       (&D:lockscope (lockinfo lockscope:))
+       (&D:depth 0)
+       (&D:owner (lockinfo owner:))
+       (&D:timeout "Second-3600")
+       (&D:locktoken
+        (&D:href (lockinfo token:)))
+       (&D:lockroot
+        (&D:href (lockinfo lockroot:))))))
+
+(def properties-for-path (path)
+     (set propertyfilename (propertyfilename-for-path path))
+     (if (set propertydata (NSData dataWithContentsOfFile:propertyfilename))
+         (then (propertydata propertyListValue))
+         (else (dict))))
+
+(def write-properties-for-path (properties path)
+     (set propertyfilename (propertyfilename-for-path path))
+     ((properties XMLPropertyListRepresentation) writeToFile:propertyfilename atomically:NO))
+
 (lock "/*path:"
       (unless (REQUEST body)
-              ;; lock refresh              
+              ;; lock refresh
               (RESPONSE setStatus:200)
               (return "unsupported lock refresh"))
       
@@ -505,38 +542,43 @@
       (puts string)
       (set reader ((RadXMLReader alloc) init))
       (set command (reader readXMLFromString:string error:nil))
-      (set owner "")
+      
+      ;; lock properties
+      (set lockscope nil)
+      (set locktype nil)
+      (set owner nil)
       (if (eq (command universalName) "{DAV:}lockinfo")
           ((command children) each:
            (do (element)
                (cond ((eq (element universalName) "{DAV:}lockscope")
-                      (puts "lockscope"))
+                      (set lockscope (element stringContents)))
                      ((eq (element universalName) "{DAV:}locktype")
-                      (puts "locktype"))
+                      (set locktype (element stringContents)))
                      ((eq (element universalName) "{DAV:}owner")
-                      (set owner (element stringValue))
-                      (puts "owner")
-                      (puts owner))
+                      (set owner (element stringContents)))
                      ))))
+      
+      (set token "opaquelocktoken:12341234-1234-1234-1234-1234123456")
+      (set lock (dict lockscope:lockscope
+                       locktype:locktype
+                          token:token
+                       lockroot:(+ (server REQUEST) "/" *path)
+                          owner:owner))
+      
+      (set properties (properties-for-path *path))
+      (properties lock:lock)
+      (write-properties-for-path properties *path)
+      
       ;; pretend valid lock
       (RESPONSE setStatus:200)
-      (set token "opaquelocktoken:12341234-1234-1234-1234-1234123456")
       (RESPONSE setValue:"text/xml; charset=\"utf-8\"" forHTTPHeader:"Content-Type")
       (RESPONSE setValue:token forHTTPHeader:"Lock-Token")
+      
+      (set lockdiscovery (lockdiscovery-for-path *path))
+      
       (set result (+ "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n"
                      (&D:prop xmlns:D:"DAV:"
-                      (&D:lockdiscovery
-                       (&D:activelock
-                        (&D:locktype (&D:write))
-                        (&D:lockscope (&D:exclusive))
-                        (&D:depth 0)
-                        (&D:owner "litmus test suite")
-                        (&D:timeout "Second-3600")
-                        (&D:locktoken
-                         (&D:href token))
-                        (&D:lockroot
-                         (&D:href (+ (server REQUEST) "/" *path)))
-                        )))))
+                      lockdiscovery)))
       (puts result)
       result)
 
